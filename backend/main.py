@@ -2,6 +2,8 @@
 PA-as-a-Service — API Gateway
 Orchestrates: Scheduler, Task Manager, GitHub Agent, Mastodon Agent, PA Chat Agent
 """
+from dotenv import load_dotenv
+load_dotenv()
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,6 +15,7 @@ from services.github_agent.router import router as github_router
 from services.mastodon_agent.router import router as mastodon_router
 from services.chat_agent.router          import router as chat_router
 from services.procrastination.router     import router as procrastination_router
+from services.finance.router             import router as finance_router
 from shared.models import HealthResponse, PAStatus
 
 app = FastAPI(
@@ -36,6 +39,7 @@ app.include_router(github_router,    prefix="/api/github",    tags=["GitHub Agen
 app.include_router(mastodon_router,  prefix="/api/mastodon",  tags=["Mastodon Agent"])
 app.include_router(chat_router,            prefix="/api/chat",            tags=["PA Chat Agent"])
 app.include_router(procrastination_router, prefix="/api/procrastination", tags=["Anti-Procrastination"])
+app.include_router(finance_router,         prefix="/api/finance",         tags=["Finance Tracker"])
 
 @app.get("/api/health", response_model=HealthResponse)
 async def health():
@@ -47,9 +51,9 @@ async def health():
 
 @app.get("/api/status", response_model=PAStatus)
 async def status():
-    """High-level PA status snapshot."""
     from services.tasks.store     import task_store
     from services.scheduler.store import schedule_store
+    from services.finance.store   import finance_store
 
     pending  = sum(1 for t in task_store.values() if t["status"] == "pending")
     done     = sum(1 for t in task_store.values() if t["status"] == "done")
@@ -60,6 +64,7 @@ async def status():
         pending_tasks=pending,
         completed_tasks=done,
         upcoming_events=upcoming,
+        total_expenses=len(finance_store),
     )
 
 

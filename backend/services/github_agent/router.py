@@ -107,9 +107,15 @@ async def trending_repos(language: str = "python"):
         f"/search/repositories?q=language:{language}+created:>{cutoff}&sort=stars&order=desc&per_page=6",
         token=None,
     )
-    return [
-        {"name": r["full_name"], "stars": r["stargazers_count"],
-         "description": (r.get("description") or "")[:100],
-         "url": r["html_url"], "language": r.get("language")}
-        for r in data.get("items", [])
-    ]
+    results = []
+    for r in data.get("items", []):
+        desc = r.get("description") or ""
+        # Filter out non-English descriptions
+        if any(ord(c) > 127 for c in desc[:30]):
+            continue
+        results.append({
+            "name": r["full_name"], "stars": r["stargazers_count"],
+            "description": desc[:100],
+            "url": r["html_url"], "language": r.get("language")
+        })
+    return results[:6]

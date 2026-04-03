@@ -10,7 +10,8 @@ class PAStatus(BaseModel):
     pending_tasks: int
     completed_tasks: int
     upcoming_events: int
-
+    total_expenses:  int = 0
+    
 class TaskCreate(BaseModel):
     title: str
     description: Optional[str] = ""
@@ -67,3 +68,17 @@ class MastodonTrendResult(BaseModel):
     trending_topics: List[str]
     sentiment_summary: str
     recommended_actions: List[str]
+
+class ExpenseCreate(BaseModel):
+    amount:      float
+    category:    str
+    description: Optional[str] = ""
+    date:        Optional[str] = None
+
+class ExpenseOut(BaseModel):
+    id:          str
+    amount:      float
+    category:    str
+    description: str
+    date:        str
+    created_at:  str
