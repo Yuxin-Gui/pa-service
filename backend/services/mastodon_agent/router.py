@@ -130,8 +130,12 @@ def _analyse_basic(posts, topics):
 
 @router.post("/analyse", response_model=MastodonTrendResult)
 async def analyse_feed(body: MastodonAnalysisRequest):
-    base    = body.instance_url.rstrip("/")
-    headers = {"Authorization": f"Bearer {body.access_token}"}
+    token    = body.access_token or os.environ.get("MASTODON_ACCESS_TOKEN", "")
+    instance = body.instance_url or os.environ.get("MASTODON_INSTANCE", "https://mastodon.social")
+    if not token:
+        raise HTTPException(401, "Access token required — provide one or set MASTODON_ACCESS_TOKEN in .env")
+    base    = instance.rstrip("/")
+    headers = {"Authorization": f"Bearer {token}"}    
     async with httpx.AsyncClient(timeout=15) as client:
         url = (f"{base}/api/v1/timelines/tag/{body.hashtag}?limit=40"
                if body.hashtag else f"{base}/api/v1/timelines/home?limit=40")

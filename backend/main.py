@@ -16,6 +16,9 @@ from services.mastodon_agent.router import router as mastodon_router
 from services.chat_agent.router          import router as chat_router
 from services.procrastination.router     import router as procrastination_router
 from services.finance.router             import router as finance_router
+from services.hackernews.router          import router as hackernews_router
+from services.singapore.router           import router as singapore_router
+from services.research.router            import router as research_router
 from shared.models import HealthResponse, PAStatus
 
 app = FastAPI(

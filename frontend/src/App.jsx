@@ -66,6 +66,9 @@ const ICONS = {
   x:         "M18 6L6 18M6 6l12 12",
   info:      "M12 16v-4M12 8h.01M12 2a10 10 0 100 20A10 10 0 0012 2z",
   budget:    "M12 2v20M17 5H9.5a3.5 3.5 0 100 7h5a3.5 3.5 0 110 7H6",
+  news:     "M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10l6 6v8a2 2 0 01-2 2zM9 13h6M9 17h4",
+  sgflag:   "M12 2a10 10 0 100 20A10 10 0 0012 2zm-2 6h8M6 12h12M6 16h8",
+  academic: "M12 2l9 4.9V11c0 5.5-3.8 10.7-9 12-5.2-1.3-9-6.5-9-12V6.9L12 2z",
 };
 
 // ── Toast system (Heuristic 1 — Visibility of system status) ──────────────────
@@ -683,7 +686,7 @@ function GitHubPanel() {
 
 // ── MASTODON PANEL ────────────────────────────────────────────────────────────
 function MastodonPanel({ riskLevel }) {
-  const [form, setForm]       = useState({ instance_url: "https://mastodon.social", access_token: "", hashtag: "" });
+  const [form, setForm] = useState({ instance_url: "https://mastodon.social", access_token: "", hashtag: "" });
   const [result, setResult]   = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState("");
@@ -727,8 +730,16 @@ function MastodonPanel({ riskLevel }) {
       <Card style={{ marginBottom: 16 }}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
           <Input label="Instance URL" value={form.instance_url} onChange={e => setForm({ ...form, instance_url: e.target.value })} />
-          <Input label="Access token" tooltip="Get from your Mastodon instance: Settings → Development → New application" type="password" value={form.access_token} onChange={e => setForm({ ...form, access_token: e.target.value })} placeholder="Your token..." />
+          <Input label="Access token" tooltip="Get from Mastodon: Settings → Development → New application"
+            type="password" value={form.access_token}
+            onChange={e => setForm({ ...form, access_token: e.target.value })}
+            placeholder="Your token..." />
         </div>
+        {!form.access_token && (
+          <div style={{ fontSize:12, color:C.green, marginBottom:12, display:"flex", alignItems:"center", gap:6 }}>
+            ✅ Personal Mastodon token configured in .env — click Analyse Live to use your real feed
+          </div>
+        )}
         <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: 10, alignItems: "end" }}>
           <Input label="Hashtag filter (optional)" value={form.hashtag} onChange={e => setForm({ ...form, hashtag: e.target.value })} placeholder="python, ai, tech..." />
           <Btn onClick={analyse} disabled={loading}><Icon d={ICONS.refresh} size={14} /> Analyse live</Btn>
@@ -1182,7 +1193,8 @@ function ReportsPanel() {
     </div>
   );
 }
-
+const CAT_COLORS = { Food:"#e0a033",Transport:"#7c8cf8",Study:"#06b6d4",Entertainment:"#a78bfa",Shopping:"#e05252",Health:"#52b788",Utilities:"#8899aa",Other:"#445566" };
+const CAT_EMOJI  = { Food:"🍜",Transport:"🚌",Study:"📚",Entertainment:"🎮",Shopping:"🛍️",Health:"🏥",Utilities:"💡",Other:"📦" };
 // ── FINANCE PANEL ─────────────────────────────────────────────────────────────
 function FinancePanel() {
   const [expenses, setExpenses]     = useState([]);
@@ -1198,8 +1210,6 @@ function FinancePanel() {
   const chartInstance               = useRef(null);
   const toast = useToast();
 
-  const CAT_COLORS = { Food:"#e0a033",Transport:"#7c8cf8",Study:"#06b6d4",Entertainment:"#a78bfa",Shopping:"#e05252",Health:"#52b788",Utilities:"#8899aa",Other:"#445566" };
-  const CAT_EMOJI  = { Food:"🍜",Transport:"🚌",Study:"📚",Entertainment:"🎮",Shopping:"🛍️",Health:"🏥",Utilities:"💡",Other:"📦" };
 
   const load = useCallback(async () => {
     try {
@@ -1376,6 +1386,373 @@ function FinancePanel() {
   );
 }
 
+// ── HACKERNEWS PANEL ──────────────────────────────────────────────────────────
+function HackerNewsPanel() {
+  const [data, setData]       = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState("");
+  const [filter, setFilter]   = useState("all");
+  const toast = useToast();
+
+  const load = async () => {
+    setLoading(true); setError("");
+    try {
+      const d = await api("/hackernews/top");
+      setData(d);
+      toast.show(`Loaded ${d.stories.length} stories`, "info");
+    } catch(e) { setError(friendlyError(e)); }
+    finally { setLoading(false); }
+  };
+
+  const FILTERS = [
+    { value: "all",      label: "All stories" },
+    { value: "relevant", label: "Related to my tasks" },
+    { value: "top",      label: "Highest score" },
+  ];
+
+  const filtered = data?.stories ? (() => {
+    let s = [...data.stories];
+    if (filter === "relevant") s = s.filter(x => x.relevant_task);
+    if (filter === "top")      s = s.sort((a,b) => b.score - a.score);
+    return s;
+  })() : [];
+
+  return (
+    <div>
+      <SectionHeader icon="news" title="HackerNews Agent"
+        subtitle="Top tech stories AI-summarised and correlated to your tasks — no API key required" />
+
+      {!data && !loading && (
+        <Card style={{ textAlign:"center", padding:"40px 20px", borderColor:C.indigo+"30" }}>
+          <div style={{ fontSize:32, marginBottom:12 }}>📰</div>
+          <div style={{ fontSize:15, fontWeight:700, color:C.text, marginBottom:6 }}>
+            Fetch today's top tech stories
+          </div>
+          <div style={{ fontSize:13, color:C.muted, marginBottom:20, lineHeight:1.7 }}>
+            Pulls the top 8 stories from Hacker News, AI-summarises each one,
+            and highlights any that relate to your current tasks.
+          </div>
+          <Btn onClick={load}><Icon d={ICONS.refresh} size={14} /> Load stories</Btn>
+        </Card>
+      )}
+
+      {loading && <EmptyState icon="news" message="Fetching and summarising top stories..." />}
+
+      {error && <div style={{ color:C.red, marginBottom:12, fontSize:13, padding:"10px 14px",
+        background:C.red+"10", borderRadius:8, borderLeft:`3px solid ${C.red}` }}>{error}</div>}
+
+      {data && !loading && (
+        <>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+            <div style={{ fontSize:12, color:C.muted }}>
+              {data.stories.length} stories · fetched {new Date(data.fetched_at).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}
+            </div>
+            <Btn variant="ghost" small onClick={load}><Icon d={ICONS.refresh} size={12} /> Refresh</Btn>
+          </div>
+
+          <FilterPills
+            options={FILTERS}
+            value={filter}
+            onChange={setFilter}
+          />
+
+          {filtered.length === 0 ? (
+            <EmptyState icon="news" message="No stories match this filter" />
+          ) : (
+            <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+              {filtered.map((s,i) => (
+                <Card key={s.id} style={{ borderColor: s.relevant_task ? C.indigo+"40" : C.border }}>
+                  <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:12, marginBottom:6 }}>
+                    <a href={s.url} target="_blank" rel="noopener noreferrer"
+                      style={{ fontSize:14, fontWeight:700, color:C.indigo, textDecoration:"none", flex:1, lineHeight:1.4 }}
+                      onMouseEnter={e=>e.target.style.textDecoration="underline"}
+                      onMouseLeave={e=>e.target.style.textDecoration="none"}>
+                      {s.title}
+                    </a>
+                    <div style={{ display:"flex", gap:10, flexShrink:0, fontSize:11, color:C.muted, whiteSpace:"nowrap" }}>
+                      <span>⬆️ {s.score}</span>
+                      <span>💬 {s.comments}</span>
+                      <span>🕐 {s.time_ago}</span>
+                    </div>
+                  </div>
+                  <div style={{ fontSize:13, color:"#c8d0e8", lineHeight:1.6, marginBottom: s.relevant_task ? 8 : 0 }}>
+                    {s.summary}
+                  </div>
+                  {s.relevant_task && (
+                    <div style={{ fontSize:11, background:C.indigo+"15", border:`1px solid ${C.indigo}30`,
+                      borderRadius:6, padding:"4px 10px", display:"inline-flex", alignItems:"center",
+                      gap:6, color:C.indigo }}>
+                      🔗 Related to: <strong>{s.relevant_task}</strong>
+                    </div>
+                  )}
+                </Card>
+              ))}
+            </div>
+          )}
+
+          <div style={{ fontSize:11, color:C.faint, textAlign:"center", marginTop:14 }}>
+            Source: Hacker News Firebase API · news.ycombinator.com · No authentication required
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── SINGAPORE PANEL ───────────────────────────────────────────────────────────
+function SingaporePanel() {
+  const [data, setData]       = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [busStop, setBusStop] = useState("83139");
+  const [error, setError]     = useState("");
+  const toast = useToast();
+
+  const load = async () => {
+    setLoading(true); setError("");
+    try {
+      setData(await api(`/singapore/daily?bus_stop=${busStop}`));
+      toast.show("Singapore conditions updated", "info");
+    } catch(e) { setError(friendlyError(e)); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const PSI_COLOR  = s => s==="Good"?C.green:s==="Moderate"?C.amber:s==="Unavailable"?C.muted:C.red;
+  const PSI_BG     = s => PSI_COLOR(s) + "15";
+
+  return (
+    <div>
+      <SectionHeader icon="sgflag" title="Singapore Agent"
+        subtitle="Live air quality & bus arrivals from Singapore Government APIs" />
+
+      <div style={{ display:"flex", gap:10, alignItems:"end", marginBottom:16 }}>
+        <Input label="Bus stop code" value={busStop}
+          onChange={e => setBusStop(e.target.value)}
+          placeholder="e.g. 83139"
+          tooltip="Find your bus stop code at mytransport.sg or on the bus stop sign" />
+        <Btn onClick={load} disabled={loading}>
+          <Icon d={ICONS.refresh} size={14} /> {loading ? "Loading..." : "Refresh"}
+        </Btn>
+      </div>
+
+      {error && <div style={{ color:C.red, marginBottom:12, fontSize:13, padding:"10px 14px",
+        background:C.red+"10", borderRadius:8, borderLeft:`3px solid ${C.red}` }}>{error}</div>}
+
+      {loading ? <EmptyState icon="sgflag" message="Fetching live Singapore data..." /> : data && (
+        <>
+          {/* AI Briefing */}
+          <Card style={{ marginBottom:14, borderColor:C.indigo+"40", padding:"18px 22px" }}>
+            <div style={{ fontSize:11, fontWeight:600, color:C.indigo, marginBottom:8, letterSpacing:"0.05em" }}>
+              🤖 AI DAILY BRIEFING
+            </div>
+            <div style={{ fontSize:15, color:C.text, lineHeight:1.8 }}>{data.briefing}</div>
+          </Card>
+
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
+            {/* PSI Card */}
+            <Card style={{ borderColor: PSI_COLOR(data.psi.status) + "40", textAlign:"center", padding:"24px 20px" }}>
+              <div style={{ fontSize:11, fontWeight:600, color:C.muted, marginBottom:12, letterSpacing:"0.05em" }}>
+                AIR QUALITY INDEX (PSI)
+              </div>
+              <div style={{ fontSize:48, fontWeight:900, color:PSI_COLOR(data.psi.status), marginBottom:6, lineHeight:1 }}>
+                {data.psi.psi ?? "—"}
+              </div>
+              <div style={{ display:"inline-block", background:PSI_BG(data.psi.status),
+                borderRadius:20, padding:"4px 16px", fontSize:13, fontWeight:700,
+                color:PSI_COLOR(data.psi.status), marginBottom:10 }}>
+                {data.psi.status}
+              </div>
+              <div style={{ fontSize:12, color:C.muted, lineHeight:1.6 }}>
+                {data.psi.status==="Good" && "Safe for all outdoor activities"}
+                {data.psi.status==="Moderate" && "Sensitive groups: limit prolonged outdoor exertion"}
+                {data.psi.status==="Unhealthy" && "Reduce outdoor activities"}
+                {data.psi.status==="Unavailable" && "PSI data temporarily unavailable"}
+              </div>
+              {data.psi.updated && (
+                <div style={{ fontSize:10, color:C.faint, marginTop:8 }}>
+                  Updated: {new Date(data.psi.updated).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}
+                </div>
+              )}
+            </Card>
+
+            {/* Bus Card */}
+            <Card style={{ borderColor: data.bus.available ? C.green+"30" : C.border }}>
+              <div style={{ fontSize:11, fontWeight:600, color:C.muted, marginBottom:12, letterSpacing:"0.05em" }}>
+                🚌 BUS ARRIVALS — STOP {data.bus.stop}
+              </div>
+              {!data.bus.available ? (
+                <div>
+                  <div style={{ fontSize:13, color:C.muted, lineHeight:1.7, marginBottom:10 }}>
+                    {data.bus.message}
+                  </div>
+                  <a href="https://datamall.lta.gov.sg/content/datamall/en/request-for-api.html"
+                    target="_blank" rel="noopener noreferrer"
+                    style={{ fontSize:12, color:C.indigo }}>
+                    Register free at datamall.lta.gov.sg →
+                  </a>
+                </div>
+              ) : data.bus.buses.length === 0 ? (
+                <div style={{ fontSize:13, color:C.muted }}>No buses found for this stop</div>
+              ) : (
+                <div>
+                  {data.bus.buses.map((b, i) => (
+                    <div key={i} style={{ display:"flex", justifyContent:"space-between",
+                      alignItems:"center", padding:"8px 0",
+                      borderBottom: i < data.bus.buses.length-1 ? `1px solid ${C.border}` : "none" }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                        <span style={{ background:C.indigo+"20", color:C.indigo, borderRadius:6,
+                          padding:"2px 10px", fontSize:14, fontWeight:800 }}>{b.service}</span>
+                        <span style={{ fontSize:11, color:C.muted }}>
+                          {b.load==="SEA" ? "Seats available" : b.load==="SDA" ? "Standing available" : b.load==="LSD" ? "Limited standing" : ""}
+                        </span>
+                      </div>
+                      <span style={{ fontSize:15, fontWeight:800,
+                        color: b.eta==="Arr"||parseInt(b.eta)<=2 ? C.green : C.text }}>
+                        {b.eta}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          </div>
+
+          <div style={{ fontSize:11, color:C.faint, textAlign:"center" }}>
+            Sources: data.gov.sg (PSI — National Environment Agency) ·
+            datamall.lta.gov.sg (Bus — Land Transport Authority)
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── RESEARCH PANEL ────────────────────────────────────────────────────────────
+function ResearchPanel() {
+  const [data, setData]       = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [query, setQuery]     = useState("");
+  const [error, setError]     = useState("");
+  const toast = useToast();
+
+  const search = async (q) => {
+    const searchQuery = q || query;
+    if (!searchQuery.trim()) return;
+    setLoading(true); setError("");
+    try {
+      const endpoint = q
+        ? `/research/search?query=${encodeURIComponent(q)}`
+        : `/research/search?query=${encodeURIComponent(query)}`;
+      setData(await api(endpoint));
+      toast.show(`Found papers for "${searchQuery}"`, "info");
+    } catch(e) { setError(friendlyError(e)); }
+    finally { setLoading(false); }
+  };
+
+  const suggest = async () => {
+    setLoading(true); setError("");
+    try {
+      const d = await api("/research/suggest");
+      setData(d);
+      setQuery(d.query);
+      toast.show(`Showing papers for "${d.query}"`, "info");
+    } catch(e) { setError(friendlyError(e)); }
+    finally { setLoading(false); }
+  };
+
+  const QUICK_SEARCHES = [
+    "cloud computing microservices",
+    "procrastination academic performance",
+    "REST API design patterns",
+    "personal assistant AI agent",
+  ];
+
+  return (
+    <div>
+      <SectionHeader icon="academic" title="Research Assistant"
+        subtitle="Find academic papers from arXiv.org (Cornell University) — no API key required" />
+
+      <Card style={{ marginBottom:16 }}>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr auto auto", gap:10, alignItems:"end", marginBottom:10 }}>
+          <Input label="Search topic" value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="e.g. microservices architecture, procrastination AI..."
+            onKeyDown={e => e.key==="Enter" && search()} />
+          <Btn onClick={() => search()} disabled={loading || !query.trim()}>
+            <Icon d={ICONS.refresh} size={14} /> Search
+          </Btn>
+          <Btn variant="ghost" onClick={suggest} disabled={loading}>
+            ✨ Auto from tasks
+          </Btn>
+        </div>
+
+        {/* Quick search pills */}
+        <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+          {QUICK_SEARCHES.map(q => (
+            <button key={q} onClick={() => { setQuery(q); search(q); }} style={{
+              background:"rgba(124,140,248,0.08)", border:`1px solid rgba(124,140,248,0.2)`,
+              borderRadius:20, padding:"3px 12px", fontSize:11, color:"#a0aaff",
+              cursor:"pointer", fontFamily:"inherit",
+            }}>{q}</button>
+          ))}
+        </div>
+      </Card>
+
+      {!data && !loading && (
+        <Card style={{ textAlign:"center", padding:"40px 20px", borderColor:C.indigo+"30" }}>
+          <div style={{ fontSize:32, marginBottom:12 }}>📚</div>
+          <div style={{ fontSize:15, fontWeight:700, color:C.text, marginBottom:6 }}>
+            Search 2 million+ academic papers
+          </div>
+          <div style={{ fontSize:13, color:C.muted, lineHeight:1.7 }}>
+            Type a topic above or click "Auto from tasks" to find papers
+            relevant to what you're currently working on.
+          </div>
+        </Card>
+      )}
+
+      {error && <div style={{ color:C.red, marginBottom:12, fontSize:13, padding:"10px 14px",
+        background:C.red+"10", borderRadius:8, borderLeft:`3px solid ${C.red}` }}>{error}</div>}
+
+      {loading && <EmptyState icon="academic" message="Searching arXiv.org..." />}
+
+      {data && !loading && (
+        <>
+          <div style={{ fontSize:12, color:C.muted, marginBottom:12 }}>
+            {data.papers.length} papers for "{data.query}" · {data.source}
+          </div>
+          <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+            {data.papers.map((p,i) => (
+              <Card key={i}>
+                <div style={{ display:"flex", justifyContent:"space-between", gap:12, marginBottom:5 }}>
+                  <a href={p.url} target="_blank" rel="noopener noreferrer"
+                    style={{ fontSize:14, fontWeight:700, color:C.indigo, textDecoration:"none", flex:1, lineHeight:1.4 }}
+                    onMouseEnter={e=>e.target.style.textDecoration="underline"}
+                    onMouseLeave={e=>e.target.style.textDecoration="none"}>
+                    {p.title}
+                  </a>
+                  <span style={{ fontSize:11, color:C.faint, flexShrink:0 }}>{p.published}</span>
+                </div>
+                <div style={{ fontSize:11, color:C.muted, marginBottom:6 }}>{p.authors.join(", ")}</div>
+                {p.relevance && (
+                  <div style={{ fontSize:13, color:C.green, marginBottom:6, display:"flex", gap:6 }}>
+                    <span style={{ flexShrink:0 }}>💡</span> {p.relevance}
+                  </div>
+                )}
+                <div style={{ fontSize:12, color:C.muted, lineHeight:1.6 }}>{p.summary}</div>
+              </Card>
+            ))}
+          </div>
+          <div style={{ fontSize:11, color:C.faint, textAlign:"center", marginTop:14 }}>
+            Source: arXiv.org open access preprint server · Cornell University · HTTPS · No authentication
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
 function Dashboard({ onNav }) {
   const [status, setStatus] = useState(null);
@@ -1413,7 +1790,7 @@ function Dashboard({ onNav }) {
         <Stat label="Events"       value={status?.upcoming_events ?? "—"} color={C.red}    onClick={()=>onNav("scheduler")} />
         <Stat label="Expenses"     value={status?.total_expenses  ?? "—"} color={C.amber}  onClick={()=>onNav("finance")}  />
       </div>
-      
+
       {risk && (
         <Card style={{ marginBottom:12, borderColor:riskColor+"35", cursor:"pointer" }} onClick={()=>onNav("procrastination")}>
           <div style={{ display:"flex", alignItems:"center", gap:12 }}>
@@ -1469,6 +1846,9 @@ const TABS = [
   { id:"procrastination", label:"Focus Mode", icon:"focus"     },
   { id:"reports",         label:"Reports",    icon:"reports"   },
   { id:"finance",         label:"Finance",    icon:"wallet"    },
+  { id: "hackernews", label: "Tech News",  icon: "news"     },
+  { id: "singapore",  label: "SG Context", icon: "sgflag"   },
+  { id: "research",   label: "Research",   icon: "academic"  },
 ];
 
 export default function App() {
@@ -1477,10 +1857,18 @@ export default function App() {
   const [focusLockDismissed, setFocusLockDismissed] = useState(false);
 
   useEffect(() => {
-    const checkRisk = () => api("/procrastination/analyse").then(d=>setRiskLevel(d.risk_level)).catch(()=>{});
+    const checkRisk = () => {
+      if (document.visibilityState === "visible") {
+        api("/procrastination/analyse").then(d => setRiskLevel(d.risk_level)).catch(() => {});
+      }
+    };
     checkRisk();
-    const interval = setInterval(checkRisk, 30000);
-    return () => clearInterval(interval);
+    const interval = setInterval(checkRisk, 60000);
+    document.addEventListener("visibilitychange", checkRisk);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", checkRisk);
+    };
   }, []);
 
   // Reset focus lock when risk drops
@@ -1491,7 +1879,6 @@ export default function App() {
   return (
     <div style={{ minHeight:"100vh", background:"#0d1117", color:C.text, fontFamily:"'Inter',system-ui,sans-serif", display:"flex" }}>
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
-      <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js" />
 
       {/* Toast container — top right */}
       <ToastContainer />
@@ -1523,13 +1910,37 @@ export default function App() {
           <div style={{ fontSize:13, fontWeight:800, letterSpacing:"0.1em", color:C.indigo, textTransform:"uppercase" }}>PA-as-a-Service</div>
           <div style={{ fontSize:11, color:C.faint, marginTop:2 }}>Personal Assistant v2.0</div>
         </div>
-        <div style={{ padding:"14px 10px", flex:1 }}>
-          {TABS.map(t=>(
-            <button key={t.id} onClick={()=>setTab(t.id)} style={{ width:"100%", display:"flex", alignItems:"center", gap:10, padding:"9px 12px", borderRadius:8, border:"none", background:tab===t.id?"rgba(124,140,248,0.12)":"transparent", color:tab===t.id?C.indigo:C.muted, fontWeight:tab===t.id?700:400, fontSize:13, cursor:"pointer", fontFamily:"inherit", marginBottom:2, textAlign:"left", transition:"all 0.15s" }}>
-              <Icon d={ICONS[t.icon]} size={15} />
-              {t.label}
-              {t.id==="chat" && <span style={{ marginLeft:"auto", background:"rgba(167,139,250,0.15)", color:C.purple, fontSize:9, fontWeight:700, padding:"2px 6px", borderRadius:4, letterSpacing:"0.05em" }}>AI</span>}
-            </button>
+        <div style={{ padding:"14px 10px", flex:1, overflowY:"auto" }}>
+          {[
+            { label: "Core",      tabs: ["dashboard","tasks","scheduler"] },
+            { label: "AI Agents", tabs: ["github","mastodon","hackernews","singapore","research"] },
+            { label: "Personal",  tabs: ["chat","procrastination","finance","reports"] },
+          ].map(group => (
+            <div key={group.label} style={{ marginBottom:6 }}>
+              <div style={{ fontSize:9, fontWeight:700, color:C.faint, letterSpacing:"0.12em",
+                textTransform:"uppercase", padding:"8px 12px 4px" }}>
+                {group.label}
+              </div>
+              {TABS.filter(t => group.tabs.includes(t.id)).map(t => (
+                <button key={t.id} onClick={() => setTab(t.id)} style={{
+                  width:"100%", display:"flex", alignItems:"center", gap:10,
+                  padding:"8px 12px", borderRadius:8, border:"none",
+                  background: tab===t.id ? "rgba(124,140,248,0.12)" : "transparent",
+                  color: tab===t.id ? C.indigo : C.muted,
+                  fontWeight: tab===t.id ? 700 : 400,
+                  fontSize:13, cursor:"pointer", fontFamily:"inherit",
+                  marginBottom:1, textAlign:"left", transition:"all 0.15s",
+                }}>
+                  <Icon d={ICONS[t.icon]} size={15} />
+                  {t.label}
+                  {t.id==="chat" && (
+                    <span style={{ marginLeft:"auto", background:"rgba(167,139,250,0.15)",
+                      color:C.purple, fontSize:9, fontWeight:700,
+                      padding:"2px 6px", borderRadius:4 }}>AI</span>
+                  )}
+                </button>
+              ))}
+            </div>
           ))}
         </div>
       </nav>
@@ -1545,7 +1956,11 @@ export default function App() {
         {tab==="procrastination" && <ProcrastinationPanel />}
         {tab==="reports"         && <ReportsPanel />}
         {tab==="finance"         && <FinancePanel />}
+        {tab === "hackernews"  && <HackerNewsPanel />}
+        {tab === "singapore"   && <SingaporePanel />}
+        {tab === "research"    && <ResearchPanel />}
       </main>
     </div>
   );
 }
+
