@@ -40,6 +40,7 @@ const ICONS = {
   star:     "M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z",
   alert:    "M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01",
   send:     "M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z",
+  brain: "M9.5 2a2.5 2.5 0 015 0v1a2.5 2.5 0 01-5 0V2zM4 8a4 4 0 014-4h8a4 4 0 014 4v1a4 4 0 01-4 4H8a4 4 0 01-4-4V8zM2 19a6 6 0 0112 0M14 19a6 6 0 0112 0",
 };
 
 // ── Small components ─────────────────────────────────────────────────────────
@@ -646,7 +647,122 @@ function ChatPanel() {
     </div>
   );
 }
+// ── PROCRASTINATION PANEL ────────────────────────────────────────────────────
+function ProcrastinationPanel() {
+  const [data, setData]       = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState("");
 
+  const load = useCallback(async () => {
+    setLoading(true);
+    try { setData(await api("/procrastination/analyse")); }
+    catch (e) { setError(e.message); }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const RISK_COLOR = { high: "#e05252", medium: "#e0a033", low: "#52b788" };
+  const RISK_EMOJI = { high: "🔴", medium: "🟡", low: "🟢" };
+
+  return (
+    <div>
+      <SectionHeader icon="alert" title="Focus Mode — Anti-Procrastination" />
+
+      {/* Science banner */}
+      <Card style={{ marginBottom: 16, borderColor: "rgba(124,140,248,0.3)", background: "rgba(124,140,248,0.06)" }}>
+        <div style={{ fontSize: 12, color: "#a0aaff", lineHeight: 1.7 }}>
+          🧠 <strong>Science-backed:</strong> This feature uses <strong>Implementation Intentions</strong> (Gollwitzer, 1999 — increases follow-through by 300%), the <strong>Pomodoro Technique</strong> (Cirillo, 1980s), and <strong>self-compassion research</strong> (Sirois, Durham University) to help you beat procrastination — not through guilt, but through smart planning.
+        </div>
+      </Card>
+
+      {error && <div style={{ color: "#e05252", marginBottom: 12, fontSize: 13 }}>{error}</div>}
+
+      {loading ? (
+        <div style={{ color: "#8899aa", textAlign: "center", padding: 32 }}>Analysing your procrastination patterns...</div>
+      ) : data && (
+        <>
+          {/* Risk Score */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
+            {[
+              { label: "Risk Level", value: `${RISK_EMOJI[data.risk_level]} ${data.risk_level.toUpperCase()}`, color: RISK_COLOR[data.risk_level] },
+              { label: "Completion Rate", value: `${data.completion_rate}%`, color: "#7c8cf8" },
+              { label: "Overdue Tasks", value: data.overdue.length, color: "#e05252" },
+              { label: "Pending High Priority", value: data.pending_high.length, color: "#e0a033" },
+            ].map(c => (
+              <Card key={c.label} style={{ borderColor: c.color + "33" }}>
+                <div style={{ fontSize: 22, fontWeight: 900, color: c.color, marginBottom: 4 }}>{c.value}</div>
+                <div style={{ fontSize: 11, color: "#8899aa", fontWeight: 700, textTransform: "uppercase" }}>{c.label}</div>
+              </Card>
+            ))}
+          </div>
+
+          {/* Patterns detected */}
+          {data.patterns.length > 0 && (
+            <Card style={{ marginBottom: 16, borderColor: "rgba(224,82,82,0.3)" }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#e05252", marginBottom: 10 }}>⚠️ PROCRASTINATION PATTERNS DETECTED</div>
+              {data.patterns.map((p, i) => (
+                <div key={i} style={{ display: "flex", gap: 8, marginBottom: 6, fontSize: 13, color: "#c8d0e8" }}>
+                  <span style={{ color: "#e05252" }}>→</span> {p}
+                </div>
+              ))}
+            </Card>
+          )}
+
+          {/* AI Nudge */}
+          {data.nudge && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+
+              {/* Focus task + mini steps */}
+              <Card style={{ borderColor: "rgba(124,140,248,0.3)" }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#7c8cf8", marginBottom: 8 }}>🎯 FOCUS ON THIS ONE TASK NOW</div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: "#e8eaf0", marginBottom: 12 }}>{data.nudge.one_task}</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#8899aa", marginBottom: 8 }}>BREAK IT DOWN INTO 3 TINY STEPS:</div>
+                {data.nudge.mini_steps?.map((step, i) => (
+                  <div key={i} style={{ display: "flex", gap: 8, marginBottom: 6, fontSize: 13, color: "#c8d0e8" }}>
+                    <span style={{ color: "#7c8cf8", fontWeight: 700 }}>{i + 1}.</span> {step}
+                  </div>
+                ))}
+              </Card>
+
+              {/* Pomodoro + Implementation */}
+              <Card style={{ borderColor: "rgba(82,183,136,0.3)" }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#52b788", marginBottom: 8 }}>🍅 TODAY'S POMODORO PLAN</div>
+                <div style={{ fontSize: 13, color: "#c8d0e8", marginBottom: 16, lineHeight: 1.6 }}>{data.nudge.pomodoro}</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#52b788", marginBottom: 8 }}>📋 IMPLEMENTATION INTENTION</div>
+                <div style={{ fontSize: 13, color: "#c8d0e8", fontStyle: "italic", lineHeight: 1.6,
+                  background: "rgba(82,183,136,0.08)", borderRadius: 8, padding: "10px 12px",
+                  borderLeft: "3px solid #52b788" }}>
+                  "{data.nudge.implementation}"
+                </div>
+              </Card>
+            </div>
+          )}
+
+          {/* Encouragement */}
+          {data.nudge?.encouragement && (
+            <Card style={{ borderColor: "rgba(167,139,250,0.3)", background: "rgba(167,139,250,0.06)" }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#a78bfa", marginBottom: 8 }}>💜 YOUR AI COACH SAYS</div>
+              <div style={{ fontSize: 14, color: "#e0e4f0", lineHeight: 1.7, fontStyle: "italic" }}>
+                "{data.nudge.encouragement}"
+              </div>
+              <div style={{ fontSize: 11, color: "#8899aa", marginTop: 8 }}>
+                Based on self-compassion research by Prof. Fuschia Sirois (Durham University) — kindness beats self-criticism for beating procrastination.
+              </div>
+            </Card>
+          )}
+
+          {/* Refresh */}
+          <div style={{ marginTop: 16, display: "flex", justifyContent: "center" }}>
+            <Btn onClick={load} variant="ghost">
+              <Icon d={ICONS.refresh} size={14} /> Re-analyse
+            </Btn>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 // ── DASHBOARD ────────────────────────────────────────────────────────────────
 function Dashboard({ onNav }) {
   const [status, setStatus] = useState(null);
@@ -741,17 +857,117 @@ const TABS = [
   { id: "github",    label: "GitHub",    icon: "github"   },
   { id: "mastodon",  label: "Mastodon",  icon: "mastodon" },
   { id: "chat",      label: "PA Chat",   icon: "chat"     },
+  { id: "procrastination", label: "Focus Mode", icon: "alert" },
 ];
 
 export default function App() {
   const [tab, setTab] = useState("dashboard");
+  const [riskLevel, setRiskLevel]         = useState("low");
+  const [focusLockDismissed, setFocusLockDismissed] = useState(false);
+  const [showMastodonWarning, setShowMastodonWarning] = useState(false);
 
-  return (
+  // Load risk level on startup
+  useEffect(() => {
+    api("/procrastination/analyse")
+      .then(d => setRiskLevel(d.risk_level))
+      .catch(() => {});
+  }, []);
+
+  const handleNav = (newTab) => {
+    if (newTab === "mastodon" && riskLevel === "high") {
+      setShowMastodonWarning(true);
+      return;
+    }
+    setTab(newTab);
+  };
+
+return (
     <div style={{
       minHeight: "100vh", background: "#0d1117", color: "#e8eaf0",
       fontFamily: "'Syne', 'DM Sans', system-ui, sans-serif",
       display: "flex",
     }}>
+
+      {/* ── FOCUS LOCK OVERLAY ── */}
+      {riskLevel === "high" && !focusLockDismissed && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 9999,
+          background: "rgba(0,0,0,0.97)",
+          display: "flex", flexDirection: "column",
+          alignItems: "center", justifyContent: "center",
+          padding: 40, textAlign: "center",
+        }}>
+          <div style={{ fontSize: 64, marginBottom: 16 }}>🔴</div>
+          <h1 style={{ fontSize: 28, fontWeight: 900, color: "#e05252", marginBottom: 8 }}>
+            HIGH PROCRASTINATION RISK
+          </h1>
+          <p style={{ fontSize: 16, color: "#8899aa", maxWidth: 480, lineHeight: 1.7, marginBottom: 8 }}>
+            Your task analysis shows you have overdue or neglected high-priority tasks.
+            Research shows that acknowledging this <em>before</em> opening other apps
+            significantly improves follow-through.
+          </p>
+          <div style={{
+            background: "rgba(224,82,82,0.08)", border: "1px solid rgba(224,82,82,0.3)",
+            borderRadius: 12, padding: "16px 24px", marginBottom: 28, maxWidth: 480,
+          }}>
+            <div style={{ fontSize: 13, color: "#e0a033", fontStyle: "italic", lineHeight: 1.7 }}>
+              "Implementation intentions increase follow-through by up to 300%. 
+              Before you continue, commit to ONE task you will do right now."
+              <br /><span style={{ fontSize: 11, color: "#8899aa" }}>— Gollwitzer, 1999</span>
+            </div>
+          </div>
+          <p style={{ fontSize: 14, color: "#8899aa", marginBottom: 24 }}>
+            What is the ONE task you commit to doing before anything else?
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%", maxWidth: 360 }}>
+            <Btn onClick={() => { setFocusLockDismissed(true); setTab("procrastination"); }}>
+              📋 Show me my Focus Plan first
+            </Btn>
+            <Btn variant="ghost" onClick={() => setFocusLockDismissed(true)}>
+              I acknowledge my backlog — let me in
+            </Btn>
+          </div>
+        </div>
+      )}
+
+      {/* ── MASTODON DISTRACTION WARNING ── */}
+      {showMastodonWarning && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 9998,
+          background: "rgba(0,0,0,0.85)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <div style={{
+            background: "#13171f", border: "1px solid rgba(224,82,82,0.4)",
+            borderRadius: 16, padding: "32px 36px", maxWidth: 420, textAlign: "center",
+          }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>⚠️</div>
+            <h2 style={{ fontSize: 20, fontWeight: 900, color: "#e05252", marginBottom: 8 }}>
+              Distraction Alert
+            </h2>
+            <p style={{ fontSize: 14, color: "#8899aa", lineHeight: 1.7, marginBottom: 20 }}>
+              You have a <strong style={{ color: "#e05252" }}>HIGH</strong> procrastination risk score.
+              Checking social media now adds friction to getting back on track.
+              <br /><br />
+              <em style={{ fontSize: 12 }}>
+                Research shows even small friction barriers reduce impulsive 
+                distraction by up to 40% — this popup is that barrier.
+              </em>
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <Btn variant="danger" onClick={() => { setShowMastodonWarning(false); setTab("mastodon"); }}>
+                Open Mastodon anyway
+              </Btn>
+              <Btn onClick={() => { setShowMastodonWarning(false); setTab("procrastination"); }}>
+                📋 Go to my Focus Plan instead
+              </Btn>
+              <Btn variant="ghost" onClick={() => setShowMastodonWarning(false)}>
+                Cancel
+              </Btn>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Sidebar */}
       <nav style={{
         width: 220, minHeight: "100vh",
@@ -765,7 +981,7 @@ export default function App() {
         </div>
         <div style={{ padding: "16px 10px", flex: 1 }}>
           {TABS.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)} style={{
+            <button key={t.id} onClick={() => handleNav(t.id)} style={{
               width: "100%", display: "flex", alignItems: "center", gap: 10,
               padding: "10px 12px", borderRadius: 8, border: "none",
               background: tab === t.id ? "rgba(124,140,248,0.15)" : "transparent",
@@ -794,12 +1010,13 @@ export default function App() {
       {/* Main content */}
       <main style={{ flex: 1, padding: "32px 36px", maxWidth: 1100, overflowY: "auto" }}>
         <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800;900&display=swap" rel="stylesheet" />
-        {tab === "dashboard" && <Dashboard onNav={setTab} />}
+        {tab === "dashboard" && <Dashboard onNav={handleNav} />}
         {tab === "tasks"     && <TasksPanel />}
         {tab === "scheduler" && <SchedulerPanel />}
         {tab === "github"    && <GitHubPanel />}
         {tab === "mastodon"  && <MastodonPanel />}
-        {tab === "chat"      && <ChatPanel />}
+        {tab === "chat"            && <ChatPanel />}
+        {tab === "procrastination" && <ProcrastinationPanel />}
       </main>
     </div>
   );

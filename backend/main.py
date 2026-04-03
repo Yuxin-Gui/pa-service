@@ -11,7 +11,8 @@ from services.scheduler.router    import router as scheduler_router
 from services.tasks.router        import router as tasks_router
 from services.github_agent.router import router as github_router
 from services.mastodon_agent.router import router as mastodon_router
-from services.chat_agent.router   import router as chat_router
+from services.chat_agent.router          import router as chat_router
+from services.procrastination.router     import router as procrastination_router
 from shared.models import HealthResponse, PAStatus
 
 app = FastAPI(
@@ -33,8 +34,8 @@ app.include_router(scheduler_router, prefix="/api/scheduler", tags=["Scheduler"]
 app.include_router(tasks_router,     prefix="/api/tasks",     tags=["Tasks"])
 app.include_router(github_router,    prefix="/api/github",    tags=["GitHub Agent"])
 app.include_router(mastodon_router,  prefix="/api/mastodon",  tags=["Mastodon Agent"])
-app.include_router(chat_router,      prefix="/api/chat",      tags=["PA Chat Agent"])
-
+app.include_router(chat_router,            prefix="/api/chat",            tags=["PA Chat Agent"])
+app.include_router(procrastination_router, prefix="/api/procrastination", tags=["Anti-Procrastination"])
 
 @app.get("/api/health", response_model=HealthResponse)
 async def health():
