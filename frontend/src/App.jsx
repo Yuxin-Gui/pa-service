@@ -735,11 +735,10 @@ function MastodonPanel({ riskLevel }) {
             onChange={e => setForm({ ...form, access_token: e.target.value })}
             placeholder="Your token..." />
         </div>
-        {!form.access_token && (
-          <div style={{ fontSize:12, color:C.green, marginBottom:12, display:"flex", alignItems:"center", gap:6 }}>
-            ✅ Personal Mastodon token configured in .env — click Analyse Live to use your real feed
-          </div>
-        )}
+        <div style={{ fontSize:11, color:C.faint, marginTop:8 }}>
+          💡 Leave token empty to use your .env configured account, or enter a token manually
+        </div>
+
         <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: 10, alignItems: "end" }}>
           <Input label="Hashtag filter (optional)" value={form.hashtag} onChange={e => setForm({ ...form, hashtag: e.target.value })} placeholder="python, ai, tech..." />
           <Btn onClick={analyse} disabled={loading}><Icon d={ICONS.refresh} size={14} /> Analyse live</Btn>
@@ -1066,7 +1065,6 @@ function ProcrastinationPanel() {
 // ── REPORTS PANEL ─────────────────────────────────────────────────────────────
 function ReportsPanel() {
   const [tasks, setTasks]           = useState([]);
-  const [weather, setWeather]       = useState(null);
   const [briefing, setBriefing]     = useState("");
   const [loadingBriefing, setLoadingBriefing] = useState(false);
   const [loading, setLoading]       = useState(true);
@@ -1075,8 +1073,7 @@ function ReportsPanel() {
 
   useEffect(() => {
     api("/tasks/").then(t=>{setTasks(t);setLoading(false);}).catch(()=>setLoading(false));
-    fetch("https://api.open-meteo.com/v1/forecast?latitude=1.3521&longitude=103.8198&current=temperature_2m,weathercode,windspeed_10m&timezone=Asia%2FSingapore")
-      .then(r=>r.json()).then(d=>setWeather(d.current)).catch(()=>{});
+
   }, []);
 
   useEffect(() => {
@@ -1105,40 +1102,44 @@ function ReportsPanel() {
   const completionPct=total>0?Math.round((done/total)*100):0;
   const overdue=tasks.filter(t=>t.due_date&&t.status!=="done"&&new Date(t.due_date)<new Date()).length;
   const barColor=completionPct>=50?C.green:completionPct>=25?C.amber:C.red;
-  const weatherCode=weather?.weathercode;
-  const weatherEmoji=weatherCode===0?"☀️":weatherCode<=3?"⛅":weatherCode<=67?"🌧️":"⛈️";
 
-  const getDailyBriefing=async()=>{
+  const getDailyBriefing = async () => {
     setLoadingBriefing(true);
-    const pending=tasks.filter(t=>t.status==="pending");
-    const overdueT=tasks.filter(t=>t.due_date&&t.status!=="done"&&new Date(t.due_date)<new Date());
-    const wText=weather?`${Math.round(weather.temperature_2m)}°C`:"unknown";
+    const pending  = tasks.filter(t => t.status === "pending");
+    const overdueT = tasks.filter(t => t.due_date && t.status !== "done" && new Date(t.due_date) < new Date());
+    const hour     = new Date().getHours();
+    const greeting = hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening";
     try {
-      const data=await api("/chat/message",{method:"POST",body:JSON.stringify({message:`Give me a concise morning briefing. Singapore weather: ${wText}. I have ${pending.length} pending tasks, ${overdueT.length} overdue, and ${total} total. Max 4 sentences, warm and motivating.`,history:[]})});
+      const data = await api("/chat/message", {
+        method: "POST",
+        body: JSON.stringify({
+          message: `Give me a concise ${greeting} briefing. I have ${pending.length} pending tasks, ${overdueT.length} overdue (${overdueT.map(t=>t.title).slice(0,2).join(", ") || "none"}), and ${tasks.filter(t=>t.status==="done").length} completed out of ${tasks.length} total. Max 3 sentences, warm and actionable.`,
+          history: [],
+        }),
+      });
       setBriefing(data.reply);
       toast.show("Daily briefing generated");
-    } catch(e){setBriefing(friendlyError(e));}
+    } catch(e) { setBriefing(friendlyError(e)); }
     setLoadingBriefing(false);
   };
 
   return (
     <div>
       <SectionHeader icon="reports" title="Reports & Daily Briefing" subtitle="Visual productivity insights and your AI morning brief" />
-
+      {/* Daily briefing */}
       <Card style={{ marginBottom:14, borderColor:C.indigo+"30" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:briefing?14:0 }}>
-          <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-            <span style={{ fontSize:28 }}>{weather?weatherEmoji:"🌡️"}</span>
-            <div>
-              <div style={{ fontSize:22, fontWeight:900, color:C.text }}>{weather?`${Math.round(weather.temperature_2m)}°C`:"—"}</div>
-              <div style={{ fontSize:11, color:C.muted }}>{weather?`Wind: ${Math.round(weather.windspeed_10m)} km/h · Singapore`:"Loading weather..."}</div>
-            </div>
+          <div>
+            <div style={{ fontSize:13, fontWeight:700, color:C.text }}>AI Daily Briefing</div>
+            <div style={{ fontSize:11, color:C.muted, marginTop:2 }}>Personalised summary of your productivity</div>
           </div>
-          <Btn onClick={getDailyBriefing} disabled={loadingBriefing}>{loadingBriefing?"Generating...":"✨ Get AI daily briefing"}</Btn>
+          <Btn onClick={getDailyBriefing} disabled={loadingBriefing}>
+            {loadingBriefing ? "Generating..." : "✨ Get briefing"}
+          </Btn>
         </div>
         {briefing && (
-          <div style={{ background:"rgba(124,140,248,0.07)", borderRadius:8, padding:"12px 16px", fontSize:13, color:"#c8d0e8", lineHeight:1.7, borderLeft:`3px solid ${C.indigo}` }}>
-            <div style={{ fontSize:11, fontWeight:600, color:C.muted, marginBottom:5, letterSpacing:"0.05em" }}>Your AI briefing</div>
+          <div style={{ background:"rgba(124,140,248,0.07)", borderRadius:8, padding:"12px 16px",
+            fontSize:13, color:"#c8d0e8", lineHeight:1.7, borderLeft:`3px solid ${C.indigo}` }}>
             {briefing}
           </div>
         )}
@@ -1764,16 +1765,18 @@ function Dashboard({ onNav }) {
   }, []);
 
   const services = [
-    { name:"Task Manager",   desc:"Create, track & complete tasks",       icon:"tasks",    tab:"tasks",           color:C.indigo },
-    { name:"Scheduler",      desc:"Events & calendar reminders",           icon:"calendar", tab:"scheduler",       color:C.amber  },
-    { name:"GitHub Agent",   desc:"AI repo analysis & trending repos",     icon:"github",   tab:"github",          color:C.green  },
-    { name:"Mastodon Agent", desc:"AI social feed analysis",               icon:"mastodon", tab:"mastodon",        color:C.red    },
-    { name:"PA Chat",        desc:"Ask or command your AI assistant",      icon:"chat",     tab:"chat",            color:C.purple },
-    { name:"Focus Mode",     desc:"Pomodoro timer & procrastination AI",   icon:"focus",    tab:"procrastination", color:C.cyan   },
-    { name:"Reports",        desc:"Charts, weather & AI daily briefing",   icon:"reports",  tab:"reports",         color:C.indigo },
-    { name:"Finance",        desc:"Expense tracking & AI insights",        icon:"wallet",   tab:"finance",         color:C.amber  },
+    { name:"Task Manager",       desc:"Create, track & complete tasks",           icon:"tasks",    tab:"tasks",           color:C.indigo },
+    { name:"Scheduler",          desc:"Events & calendar reminders",               icon:"calendar", tab:"scheduler",       color:C.amber  },
+    { name:"GitHub Agent",       desc:"AI repo analysis & trending repos",         icon:"github",   tab:"github",          color:C.green  },
+    { name:"Mastodon Agent",     desc:"AI social feed analysis & trend mining",    icon:"mastodon", tab:"mastodon",        color:C.red    },
+    { name:"HackerNews Agent",   desc:"Top tech stories AI-summarised",            icon:"news",     tab:"hackernews",      color:C.amber  },
+    { name:"Singapore Agent",    desc:"Live PSI, weather & bus arrivals",          icon:"sgflag",   tab:"singapore",       color:C.green  },
+    { name:"Research Assistant", desc:"arXiv academic papers linked to tasks",     icon:"academic", tab:"research",        color:C.indigo },
+    { name:"PA Chat",            desc:"Ask or command your AI assistant",          icon:"chat",     tab:"chat",            color:C.purple },
+    { name:"Focus Mode",         desc:"Pomodoro timer & procrastination AI",       icon:"focus",    tab:"procrastination", color:C.cyan   },
+    { name:"Finance",            desc:"Expense tracking & AI insights",            icon:"wallet",   tab:"finance",         color:C.amber  },
+    { name:"Reports",            desc:"Charts, weather & AI daily briefing",       icon:"reports",  tab:"reports",         color:C.indigo },
   ];
-
   const riskColor = risk ? RISK_COLOR[risk.risk_level] : C.muted;
 
   return (
@@ -1817,20 +1820,38 @@ function Dashboard({ onNav }) {
 
       <Card>
         <div style={{ fontSize:11, fontWeight:600, color:C.muted, marginBottom:14, letterSpacing:"0.06em", textTransform:"uppercase" }}>All services</div>
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:2 }}>
-          {services.map(s=>(
-            <div key={s.name} onClick={()=>onNav(s.tab)} style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 12px", cursor:"pointer", borderRadius:8, transition:"background 0.15s" }}
-              onMouseEnter={e=>e.currentTarget.style.background=C.hover}
-              onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-              <div style={{ background:s.color+"18", borderRadius:8, padding:8, color:s.color, display:"flex", flexShrink:0 }}><Icon d={ICONS[s.icon]} size={14} /></div>
-              <div>
-                <div style={{ fontSize:13, fontWeight:700, color:C.text }}>{s.name}</div>
-                <div style={{ fontSize:11, color:C.muted }}>{s.desc}</div>
-              </div>
+        {[
+          { label: "Core",      items: services.filter(s => ["tasks","scheduler"].includes(s.tab)) },
+          { label: "AI Agents", items: services.filter(s => ["github","mastodon","hackernews","singapore","research"].includes(s.tab)) },
+          { label: "Personal",  items: services.filter(s => ["chat","procrastination","finance","reports"].includes(s.tab)) },
+        ].map(group => (
+          <div key={group.label} style={{ marginBottom:16 }}>
+            <div style={{ fontSize:10, fontWeight:700, color:C.faint, letterSpacing:"0.12em",
+              textTransform:"uppercase", marginBottom:6, paddingBottom:6,
+              borderBottom:`1px solid ${C.border}` }}>
+              {group.label}
             </div>
-          ))}
-        </div>
-      </Card>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:2 }}>
+              {group.items.map(s=>(
+                <div key={s.name} onClick={()=>onNav(s.tab)} style={{
+                  display:"flex", alignItems:"center", gap:12,
+                  padding:"10px 12px", cursor:"pointer", borderRadius:8, transition:"background 0.15s",
+                }}
+                  onMouseEnter={e=>e.currentTarget.style.background=C.hover}
+                  onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                  <div style={{ background:s.color+"18", borderRadius:8, padding:8, color:s.color, display:"flex", flexShrink:0 }}>
+                    <Icon d={ICONS[s.icon]} size={14} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize:13, fontWeight:700, color:C.text }}>{s.name}</div>
+                    <div style={{ fontSize:11, color:C.muted }}>{s.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </Card>    
     </div>
   );
 }

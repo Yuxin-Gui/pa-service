@@ -163,8 +163,11 @@ def _build_system_prompt() -> str:
     in_progress = [t for t in all_tasks if t["status"] == "in_progress"]
     done        = [t for t in all_tasks if t["status"] == "done"]
 
-    pending_list = ", ".join(f'"{t["title"]}" (ID:{t["id"]})' for t in pending[:5]) or "none"
-    in_prog_list = ", ".join(f'"{t["title"]}" (ID:{t["id"]})' for t in in_progress[:3]) or "none"
+    pending_list = ", ".join(f'"{t["title"]}"' for t in pending[:5]) or "none"
+    in_prog_list = ", ".join(f'"{t["title"]}"' for t in in_progress[:3]) or "none"
+
+    # IDs kept separate — only for tool use, never shown to user
+    task_id_ref  = "\n".join(f'  "{t["title"]}" → ID: {t["id"]}' for t in all_tasks[:10])
 
     now = datetime.utcnow()
     upcoming = sorted(
@@ -173,12 +176,11 @@ def _build_system_prompt() -> str:
     )[:4]
     upcoming_list = ", ".join(f'"{e["title"]}" at {e["datetime_iso"][:16]}' for e in upcoming) or "none"
 
-    # Finance summary
     from datetime import timedelta
-    week_ago = (now - timedelta(days=7)).strftime("%Y-%m-%d")
-    week_total = sum(e["amount"] for e in finance_store.values() if e["date"] >= week_ago)
-    month_ago  = (now - timedelta(days=30)).strftime("%Y-%m-%d")
-    month_total= sum(e["amount"] for e in finance_store.values() if e["date"] >= month_ago)
+    week_ago    = (now - timedelta(days=7)).strftime("%Y-%m-%d")
+    month_ago   = (now - timedelta(days=30)).strftime("%Y-%m-%d")
+    week_total  = sum(e["amount"] for e in finance_store.values() if e["date"] >= week_ago)
+    month_total = sum(e["amount"] for e in finance_store.values() if e["date"] >= month_ago)
 
     return f"""You are a smart, action-oriented Personal Assistant built into PA-as-a-Service.
 
@@ -191,26 +193,32 @@ LIVE DATA:
 - Upcoming events: {upcoming_list}
 - Spending this week: S${week_total:.2f} | this month: S${month_total:.2f}
 
+TASK ID REFERENCE (use for complete_task tool only, NEVER show IDs to user):
+{task_id_ref}
+
 TOOLS AVAILABLE — use them proactively:
 - create_task: when user wants to add/create a task
-- add_expense: when user mentions spending money (e.g. "I spent $5 on lunch", "add $20 food")
+- add_expense: when user mentions spending money
 - create_event: when user wants to schedule something
-- complete_task: when user says a task is done (use the task ID from live data above)
+- complete_task: when user says a task is done (use ID from reference above)
 
 PLATFORM FEATURES:
 1. Tasks tab — create/track/complete tasks
 2. Scheduler tab — calendar events with reminders
 3. GitHub Agent — AI repo analysis and trending repos
 4. Mastodon Agent — social feed sentiment analysis
-5. Focus Mode — Pomodoro timer with anti-procrastination AI
-6. Reports tab — charts, weather, AI daily briefing
-7. Finance tab — expense tracking with AI spending insights
+5. HackerNews Agent — top tech stories AI-summarised
+6. Singapore Agent — live PSI, weather and bus arrivals
+7. Research Assistant — arXiv academic papers
+8. Focus Mode — Pomodoro timer with anti-procrastination AI
+9. Reports tab — charts and AI daily briefing
+10. Finance tab — expense tracking with AI insights
 
 STYLE:
-- Be concise (2-3 sentences max for replies)
-- Always USE tools when the user wants to create/log something — don't just say "go to the tab"
+- Be concise (2-3 sentences max)
+- Always USE tools when user wants to create/log something
 - After using a tool, confirm what you did in one sentence
-- If asked about task IDs for completing, check the live data above"""
+- NEVER show task IDs to the user in your responses"""
 
 
 # ── Chat endpoint ─────────────────────────────────────────────────────────────

@@ -27,7 +27,11 @@ def _analyse_patterns() -> dict:
     done_low   = 0
     done_high  = 0
 
-    for t in tasks:
+    # Pending high priority — only real tasks with actual titles
+    for t in all_tasks:
+        if t["status"] == "pending" and t.get("priority") == "high" and t.get("title", "").strip():
+            pending_high.append(t)
+
         # Overdue — has due date in the past and not done
         if t.get("due_date") and t["status"] != "done":
             try:
@@ -105,28 +109,34 @@ async def _get_ai_nudge(analysis: dict) -> dict:
         else None
     )
 
-    # No patterns = no AI needed, return clean positive message
     if not analysis["patterns"] or not focus_task:
         return {
-            "one_task": None,
-            "pomodoro": "You're on track! A Pomodoro session now will help you stay ahead.",
-            "mini_steps": [],
-            "encouragement": "You're doing great — keep the momentum going!",
-            "implementation": "If it is 9AM, then I will review my task list and plan the day.",
+            "one_task":       None,
+            "pomodoro":       "You're on track! A Pomodoro session now will keep you ahead.",
+            "mini_steps":     [],
+            "encouragement":  "Great work staying on top of things — keep the momentum going!",
+            "implementation": f"If it is 9 AM, then I will open my task list and plan the day.",
         }
 
     if not api_key:
         return _fallback_nudge(analysis, focus_task)
 
-    prompt = f"""You are a productivity coach. Be EXTREMELY concise — max 1 sentence per field. Only reference tasks from this list: {[t['title'] for t in analysis['overdue'] + analysis['pending_high'] + analysis['stuck']]}.
+    # Only use real task titles — no hallucination possible
+    real_titles = [t["title"] for t in analysis["overdue"] + analysis["pending_high"] + analysis["stuck"]]
 
-ONE_TASK: [exact task name from list above only]
-POMODORO: [one sentence max, be specific]
-MINI_STEPS: [3-5 words] | [3-5 words] | [3-5 words]
+    prompt = f"""You are a productivity coach. Be EXTREMELY concise.
+
+The student's most urgent task is: "{focus_task}"
+Other urgent tasks: {real_titles[1:4] if len(real_titles) > 1 else "none"}
+
+Respond in EXACTLY this format, filling in real values (no placeholders):
+ONE_TASK: {focus_task}
+POMODORO: Do 2 Pomodoros of 25 minutes each on "{focus_task}" then take a break.
+MINI_STEPS: [first tiny action] | [second tiny action] | [third tiny action]
 ENCOURAGEMENT: [one warm sentence, max 12 words, no quotes]
-IMPLEMENTATION: [If it is TIME, then I will ACTION with exact task name]"""
+IMPLEMENTATION: If it is [specific time like 9:00 AM or after lunch], then I will [specific action] on "{focus_task}"."""
 
-    async with httpx.AsyncClient(timeout=30) as client:
+    async with httpx.AsyncClient(timeout=25) as client:
         r = await client.post(
             GROQ_URL,
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
@@ -136,7 +146,7 @@ IMPLEMENTATION: [If it is TIME, then I will ACTION with exact task name]"""
     if r.status_code != 200:
         return _fallback_nudge(analysis, focus_task)
 
-    text = r.json()["choices"][0]["message"]["content"]
+    text   = r.json()["choices"][0]["message"]["content"]
     result = {}
     for line in text.split("\n"):
         line = line.strip()
@@ -147,18 +157,22 @@ IMPLEMENTATION: [If it is TIME, then I will ACTION with exact task name]"""
             steps = line[len("MINI_STEPS:"):].strip().split("|")
             result["mini_steps"] = [s.strip() for s in steps if s.strip()]
 
-    # Validate one_task is a real task
-    real_titles = [t["title"] for t in analysis["overdue"] + analysis["pending_high"] + analysis["stuck"]]
+    # Validate — reject template text
+    impl = result.get("implementation", "")
+    if "TIME" in impl or "ACTION" in impl or not impl:
+        impl = f"If it is 9:00 AM, then I will open my laptop and start on \"{focus_task}\" immediately."
+
+    # Validate one_task is always a real task
     one_task = result.get("one_task", focus_task)
     if not any(real.lower() in one_task.lower() or one_task.lower() in real.lower() for real in real_titles):
         one_task = focus_task
 
     return {
         "one_task":       one_task,
-        "pomodoro":       result.get("pomodoro", "Do 2 focused 25-min Pomodoros on your most urgent task"),
+        "pomodoro":       result.get("pomodoro", f"Do 2 focused 25-min Pomodoros on \"{focus_task}\"."),
         "mini_steps":     result.get("mini_steps", ["Open the task", "Read it fully", "Start for 5 minutes"]),
         "encouragement":  result.get("encouragement", "Small steps forward still count as progress."),
-        "implementation": result.get("implementation", f"If it is 9AM, then I will start on {focus_task}"),
+        "implementation": impl,
     }
 
 def _fallback_nudge(analysis: dict, focus_task) -> dict:

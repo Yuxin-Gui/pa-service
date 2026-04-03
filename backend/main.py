@@ -43,6 +43,9 @@ app.include_router(mastodon_router,  prefix="/api/mastodon",  tags=["Mastodon Ag
 app.include_router(chat_router,            prefix="/api/chat",            tags=["PA Chat Agent"])
 app.include_router(procrastination_router, prefix="/api/procrastination", tags=["Anti-Procrastination"])
 app.include_router(finance_router,         prefix="/api/finance",         tags=["Finance Tracker"])
+app.include_router(hackernews_router,      prefix="/api/hackernews",      tags=["HackerNews Agent"])
+app.include_router(singapore_router,       prefix="/api/singapore",       tags=["Singapore Agent"])
+app.include_router(research_router,        prefix="/api/research",        tags=["Research Assistant"])
 
 @app.get("/api/health", response_model=HealthResponse)
 async def health():
