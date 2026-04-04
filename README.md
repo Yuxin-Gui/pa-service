@@ -145,7 +145,7 @@ MASTODON_ACCESS_TOKEN=your_mastodon_token_here
 MASTODON_INSTANCE=https://mastodon.social
 ```
 
-> **Note:** `.env` is in `.gitignore` and will never be committed. The application runs without `LTA_API_KEY` and `MASTODON_ACCESS_TOKEN` — those tabs degrade gracefully with instructions to register.
+> **Note:** `.env` is in `.gitignore` and will never be committed. The application runs without `LTA_API_KEY` and `MASTODON_ACCESS_TOKEN`. Those tabs degrade gracefully with instructions to register.
 
 ### 3. Install backend dependencies
 
@@ -197,7 +197,7 @@ Then open **http://localhost:3000** in your browser.
 
 ## Feature Highlights
 
-### PA Chat — Tool-Calling AI
+### PA Chat: Tool-Calling AI
 The chat agent reads your live task list, events, and spending at every request. Type natural language to act across the platform:
 
 ```
@@ -284,7 +284,7 @@ All interface decisions were evaluated against Nielsen's (1994) ten usability he
 | H9: Error recovery | Per-error-type messages; token fields link to registration pages |
 | H10: Help | Tooltips on GitHub and Mastodon token fields |
 
-The sidebar groups 11 tabs into three sections — **Core**, **AI Agents**, **Personal** — keeping each group within Miller's (1956) 7 ± 2 working memory range.
+The sidebar groups 11 tabs into three sections: **Core**, **AI Agents**, **Personal**, keeping each group within Miller's (1956) 7 ± 2 working memory range.
 
 ---
 
@@ -329,11 +329,6 @@ Groq's free tier requires no credit card and provides generous rate limits for d
 - Sirois, F. M. (2014). Procrastination and stress. *Self and Identity, 13*(2), 128–145.
 - Thaler, R. H., & Sunstein, C. R. (2008). *Nudge.* Yale University Press.
 
----
 
-## Submission
-
-- **Due:** April 17, 2026
-- **Course:** Cloud Computing — NTU SCSE
 - **Assignment:** Topic 2 — Personal Assistant-as-a-Service
 - **GitHub:** https://github.com/Yuxin-Gui/pa-service
