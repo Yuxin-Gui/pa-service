@@ -1054,8 +1054,7 @@ function ProcrastinationPanel() {
             </Card>
           )}
 
-          {data.nudge?.encouragement && <div style={{ fontSize:13, color:C.faint, textAlign:"center", lineHeight:1.7, padding:"0 40px" }}>💜 {data.nudge.encouragement}</div>}
-          <div style={{ fontSize:11, color:"#334455", textAlign:"center", marginTop:10 }}>Pomodoro Technique (Cirillo) · Implementation Intentions (Gollwitzer, 1999) · Self-Compassion (Sirois, Durham)</div>
+          {data.nudge?.encouragement && <div style={{ fontSize:13, color:C.faint, textAlign:"center", lineHeight:1.7, padding:"0 40px", overflow:"hidden", display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical" }}>💜 {data.nudge.encouragement}</div>}          <div style={{ fontSize:11, color:"#334455", textAlign:"center", marginTop:10 }}>Pomodoro Technique (Cirillo) · Implementation Intentions (Gollwitzer, 1999) · Self-Compassion (Sirois, Durham)</div>
         </>
       )}
     </div>
@@ -1808,9 +1807,11 @@ function Dashboard({ onNav }) {
               </div>
             </div>
             {risk.nudge?.one_task && (
-              <div style={{ textAlign:"right", maxWidth:180 }}>
+              <div style={{ textAlign:"right", maxWidth:160 }}>
                 <div style={{ fontSize:11, color:C.muted, marginBottom:2 }}>Start with</div>
-                <div style={{ fontSize:12, fontWeight:700, color:C.text }}>{risk.nudge.one_task}</div>
+                <div style={{ fontSize:12, fontWeight:700, color:C.text }}>
+                  {risk.nudge.one_task.slice(0, 35)}{risk.nudge.one_task.length > 35 ? "..." : ""}
+                </div>
               </div>
             )}
             <span style={{ color:C.muted }}>›</span>
