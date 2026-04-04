@@ -28,7 +28,7 @@ def _analyse_patterns() -> dict:
     done_high  = 0
 
     # Pending high priority — only real tasks with actual titles
-    for t in all_tasks:
+    for t in tasks:
         if t["status"] == "pending" and t.get("priority") == "high" and t.get("title", "").strip():
             pending_high.append(t)
 
@@ -124,17 +124,16 @@ async def _get_ai_nudge(analysis: dict) -> dict:
     # Only use real task titles — no hallucination possible
     real_titles = [t["title"] for t in analysis["overdue"] + analysis["pending_high"] + analysis["stuck"]]
 
-    prompt = f"""You are a productivity coach. Be EXTREMELY concise.
+    prompt = f"""You are a productivity coach for an NTU student. Be specific and concrete.
 
 The student's most urgent task is: "{focus_task}"
-Other urgent tasks: {real_titles[1:4] if len(real_titles) > 1 else "none"}
 
-Respond in EXACTLY this format, filling in real values (no placeholders):
+Respond in EXACTLY this format with NO brackets or placeholders — use real specific text, does not have to be word for word, must be related to the focus task:
 ONE_TASK: {focus_task}
-POMODORO: Do 2 Pomodoros of 25 minutes each on "{focus_task}" then take a break.
-MINI_STEPS: [first tiny action] | [second tiny action] | [third tiny action]
-ENCOURAGEMENT: [one warm sentence, max 12 words, no quotes]
-IMPLEMENTATION: If it is [specific time like 9:00 AM or after lunch], then I will [specific action] on "{focus_task}"."""
+POMODORO: Do 2 Pomodoros of 25 minutes each on "{focus_task}" then take a 5-minute break.
+MINI_STEPS: Open the document and read the requirements | Write the first section outline | Set a timer and draft 200 words
+ENCOURAGEMENT: You can do this! One small step at a time adds up fast.
+IMPLEMENTATION: If it is after 3 PM, then I will sit down and work on "{focus_task}" for 25 minutes before dinner."""
 
     async with httpx.AsyncClient(timeout=25) as client:
         r = await client.post(
@@ -162,6 +161,19 @@ IMPLEMENTATION: If it is [specific time like 9:00 AM or after lunch], then I wil
     if "TIME" in impl or "ACTION" in impl or not impl:
         impl = f"If it is 9:00 AM, then I will open my laptop and start on \"{focus_task}\" immediately."
 
+    # Reject placeholder bracket text in mini steps
+    clean_steps = []
+    for step in result.get("mini_steps", []):
+        if "[" not in step and "]" not in step and len(step) > 5:
+            clean_steps.append(step)
+    if not clean_steps:
+        clean_steps = [
+            f"Open the file or document for \"{focus_task}\"",
+            "Read the requirements and write a quick outline",
+            "Set a 25-min timer and start the first section",
+        ]
+    result["mini_steps"] = clean_steps
+    
     # Validate one_task is always a real task
     one_task = result.get("one_task", focus_task)
     if not any(real.lower() in one_task.lower() or one_task.lower() in real.lower() for real in real_titles):
