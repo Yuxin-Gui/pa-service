@@ -1,6 +1,5 @@
 """
-Singapore Agent — live PSI air quality from data.gov.sg
-and bus arrivals from LTA DataMall (free registration required).
+Singapore Agent — live PSI, weather, and bus arrivals from Singapore Government APIs.
 """
 
 from fastapi import APIRouter
@@ -14,156 +13,148 @@ GROQ_URL   = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODEL = "llama-3.1-8b-instant"
 
 
-async def _get_psi() -> dict:
-    try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            r = await client.get("https://api.data.gov.sg/v1/environment/psi")
-            if r.status_code == 200:
-                data     = r.json()
-                readings = data.get("items", [{}])[0].get("readings", {})
-                psi_24h  = readings.get("psi_twenty_four_hourly", {})
-                national = psi_24h.get("national") or psi_24h.get("central") or None
-                return {
-                    "psi":      national,
-                    "status":   _psi_status(national),
-                    "updated":  data.get("items", [{}])[0].get("timestamp", ""),
-                }
-    except Exception:
-        pass
-    return {"psi": None, "status": "Unavailable", "updated": ""}
-
-
 async def _get_weather() -> dict:
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            r = await client.get("https://api.data.gov.sg/v1/environment/2-hour-nowcast")
+            r = await client.get("https://api-open.data.gov.sg/v2/real-time/api/two-hr-forecast")
             if r.status_code == 200:
-                data      = r.json()
-                forecasts = data.get("items", [{}])[0].get("forecasts", [])
-                central   = ["Ang Mo Kio", "Bishan", "Toa Payoh", "Novena"]
-                for f in forecasts:
-                    if f.get("area") in central:
-                        return {"area": f["area"], "forecast": f["forecast"]}
+                data = r.json()
+                # New API structure: data.data.items[0].forecasts
+                forecasts = data.get("data", {}).get("items", [{}])[0].get("forecasts", [])
                 if forecasts:
-                    return {"area": forecasts[0].get("area","Singapore"), "forecast": forecasts[0].get("forecast","")}
-    except Exception:
-        pass
+                    return {
+                        "area":     forecasts[0].get("area", "Singapore"),
+                        "forecast": forecasts[0].get("forecast", "Unavailable"),
+                    }
+    except Exception as e:
+        print(f"Weather error: {e}")
     return {"area": "Singapore", "forecast": "Unavailable"}
 
 
-async def _get_bus(bus_stop: str) -> dict:
+async def _get_psi() -> dict:
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get("https://api-open.data.gov.sg/v2/real-time/api/psi")
+            if r.status_code == 200:
+                data = r.json()
+                readings = data.get("data", {}).get("items", [{}])[0].get("readings", {})
+                psi_24h  = readings.get("psi_twenty_four_hourly", {})
+                val      = psi_24h.get("national") or psi_24h.get("central")
+                return {"psi": val, "status": _psi_status(val)}
+    except Exception as e:
+        print(f"PSI error: {e}")
+    return {"psi": None, "status": "Unavailable"}
+
+
+def _psi_status(psi) -> str:
+    if psi is None:  return "Unavailable"
+    if psi <= 50:    return "Good"
+    if psi <= 100:   return "Moderate"
+    if psi <= 200:   return "Unhealthy"
+    if psi <= 300:   return "Very Unhealthy"
+    return "Hazardous"
+
+
+async def _get_bus(bus_stop: str) -> list:
     lta_key = os.environ.get("LTA_API_KEY", "")
     if not lta_key:
-        return {
-            "available": False,
-            "message":   "Register free at datamall.lta.gov.sg and add LTA_API_KEY to your .env file",
-            "stop":      bus_stop,
-        }
+        return []
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             r = await client.get(
                 f"https://datamall2.mytransport.sg/ltaodataservice/v3/BusArrival?BusStopCode={bus_stop}",
-                headers={"AccountKey": lta_key, "accept": "application/json"},
+                headers={"AccountKey": lta_key}
             )
             if r.status_code == 200:
-                services = r.json().get("Services", [])[:4]
-                buses    = []
+                services = r.json().get("Services", [])
+                load_map = {
+                    "SEA": "Seats available",
+                    "SDA": "Standing available",
+                    "LSD": "Limited standing",
+                }
+                result = []
                 for s in services:
-                    n1 = s.get("NextBus", {})
-                    eta = n1.get("EstimatedArrival", "")
+                    next1 = s.get("NextBus", {})
+                    eta   = next1.get("EstimatedArrival", "")
+                    mins  = "–"
                     if eta:
-                        from datetime import timezone
-                        now  = datetime.now(timezone.utc)
-                        arr  = datetime.fromisoformat(eta.replace("Z","+00:00"))
-                        mins = max(0, int((arr - now).total_seconds() // 60))
-                        eta_str = f"{mins} min" if mins <= 60 else "—"
-                    else:
-                        eta_str = "—"
-                    buses.append({
-                        "service": s.get("ServiceNo"),
-                        "eta":     eta_str,
-                        "load":    n1.get("Load", ""),
-                        "type":    n1.get("Type", ""),
+                        try:
+                            from datetime import timezone, timedelta
+                            sgt = timezone(timedelta(hours=8))
+                            arrival = datetime.fromisoformat(eta).astimezone(sgt)
+                            now_sgt = datetime.now(sgt)
+                            diff = (arrival - now_sgt).total_seconds()
+                            mins = max(0, int(diff // 60))
+                        except Exception:
+                            pass
+                    result.append({
+                        "service": s.get("ServiceNo", ""),
+                        "load":    load_map.get(next1.get("Load", ""), "Seats available"),
+                        "eta_min": mins,
                     })
-                return {"available": True, "stop": bus_stop, "buses": buses}
-    except Exception:
-        pass
-    return {"available": False, "message": "Bus data unavailable", "stop": bus_stop}
+                return result
+    except Exception as e:
+        print(f"Bus error: {e}")
+    return []
 
 
-def _psi_status(psi) -> str:
-    if psi is None: return "Unavailable"
-    psi = int(psi)
-    if psi <= 50:  return "Good"
-    if psi <= 100: return "Moderate"
-    if psi <= 200: return "Unhealthy"
-    if psi <= 300: return "Very Unhealthy"
-    return "Hazardous"
-
-
-def _psi_advice(psi, status) -> str:
-    if status == "Unavailable": return "PSI data currently unavailable."
-    if status == "Good":        return "Air quality is good — safe for all outdoor activities."
-    if status == "Moderate":    return "Acceptable air quality — unusually sensitive people should limit prolonged outdoor exertion."
-    if status == "Unhealthy":   return "Unhealthy — reduce prolonged outdoor exertion, especially if sensitive."
-    return "Very unhealthy — avoid outdoor activities."
-
-
-async def _ai_briefing(psi: dict, weather: dict, bus: dict, tasks: list) -> str:
+async def _ai_briefing(psi, weather, bus, tasks) -> str:
     api_key = os.environ.get("GROQ_API_KEY", "")
+
+    task_list    = ", ".join(t["title"] for t in tasks[:3]) if tasks else "no pending tasks"
+    alert_text   = f"{len(bus)} bus service(s) running" if bus else "No bus data"
+    psi_text     = f"PSI {psi['psi']} ({psi['status']})" if psi.get("psi") else "PSI data unavailable"
+    weather_text = f"{weather.get('forecast', 'Unknown')} near {weather.get('area', 'Singapore')}"
+
     if not api_key:
-        return f"Air quality: {psi['status']}. Weather: {weather['forecast']}. {_psi_advice(psi.get('psi'), psi['status'])}"
+        return f"Weather: {weather_text}. Air quality: {psi_text}."
 
-    task_str = ", ".join(t["title"] for t in tasks[:3]) if tasks else "none"
-    bus_str  = (", ".join(f"Bus {b['service']} in {b['eta']}" for b in bus.get("buses", []))
-                if bus.get("available") else "Bus data unavailable")
-    psi_str  = f"PSI {psi['psi']} ({psi['status']})" if psi["psi"] else "PSI unavailable"
+    prompt = f"""You are a helpful Singapore PA assistant. Write exactly 2 short, natural sentences for an NTU student.
 
-    prompt = f"""You are a friendly PA for an NTU student in Singapore. Write exactly 2 practical sentences.
+Conditions right now:
+- Weather: {weather_text}
+- Air quality: {psi_text}
+- Transport: {alert_text}
+- Most urgent task: {task_list}
 
-Current conditions:
-- Air quality: {psi_str}
-- Weather: {weather['forecast']} near {weather['area']}
-- Bus arrivals: {bus_str}
-- Urgent tasks: {task_str}
-
-Sentence 1: outdoor safety advice based on PSI and weather.
-Sentence 2: one specific task reminder. Be direct and practical."""
+Rules:
+- Do NOT write "Sentence 1:" or "Sentence 2:" — just write the sentences naturally
+- Sentence 1: practical outdoor advice (weather + air quality)
+- Sentence 2: one task nudge, specific and encouraging
+- Maximum 30 words total
+- Casual, friendly tone"""
 
     async with httpx.AsyncClient(timeout=20) as client:
         r = await client.post(
             GROQ_URL,
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={"model": GROQ_MODEL, "messages": [{"role": "user", "content": prompt}], "max_tokens": 80},
+            json={"model": GROQ_MODEL, "messages": [{"role": "user", "content": prompt}], "max_tokens": 100},
         )
+
     if r.status_code == 200:
         return r.json()["choices"][0]["message"]["content"].strip()
-    return f"{_psi_advice(psi.get('psi'), psi['status'])} Weather: {weather['forecast']}."
+    return f"Weather: {weather_text}. Air quality: {psi_text}."
 
 
 @router.get("/daily")
 async def singapore_daily(bus_stop: str = "83139"):
     from services.tasks.store import task_store
     tasks   = [t for t in task_store.values() if t["status"] == "pending"]
-    psi     = await _get_psi()
     weather = await _get_weather()
+    psi     = await _get_psi()
     bus     = await _get_bus(bus_stop)
     brief   = await _ai_briefing(psi, weather, bus, tasks)
+
     return {
-        "psi":      psi,
-        "weather":  weather,
-        "bus":      bus,
-        "briefing": brief,
-        "sources":  ["data.gov.sg (PSI + Weather)", "datamall.lta.gov.sg (Bus)"],
-        "updated":  datetime.utcnow().isoformat(),
+        "weather":      weather,
+        "psi":          psi,
+        "bus_arrivals": bus,
+        "bus_stop":     bus_stop,
+        "briefing":     brief,
+        "updated":      datetime.utcnow().isoformat(),
     }
 
 
 @router.get("/health")
 async def sg_health():
-    has_lta = bool(os.environ.get("LTA_API_KEY", ""))
-    return {
-        "status":  "ok",
-        "sources": "data.gov.sg (free) + LTA DataMall (free registration)",
-        "lta_key": "configured" if has_lta else "not set — bus arrivals disabled",
-    }
+    return {"status": "ok", "source": "data.gov.sg + LTA DataMall v3"}

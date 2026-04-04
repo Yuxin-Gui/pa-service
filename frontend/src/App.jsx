@@ -370,7 +370,7 @@ function TasksPanel() {
       <SectionHeader icon="tasks" title="Task Manager" subtitle="Create, filter, and track your to-dos" />
 
       <Card style={{ marginBottom: 16 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 10 }}>
           <Input label="Task title" value={form.title}
             onChange={e => setForm({ ...form, title: e.target.value })}
             placeholder="What needs to be done?"
@@ -1550,7 +1550,23 @@ function SingaporePanel() {
             <div style={{ fontSize:15, color:C.text, lineHeight:1.8 }}>{data.briefing}</div>
           </Card>
 
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12, marginBottom:14 }}>
+
+            {/* Weather */}
+            <Card style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 36, marginBottom: 8 }}>
+                {data.weather?.forecast?.includes("Thunder") ? "⛈️" :
+                data.weather?.forecast?.includes("Rain") || data.weather?.forecast?.includes("Shower") ? "🌧️" :
+                data.weather?.forecast?.includes("Cloudy") ? "⛅" :
+                data.weather?.forecast?.includes("Fair") ? "☀️" : "🌡️"}
+              </div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 4 }}>
+                {data.weather?.forecast || "Unavailable"}
+              </div>
+              <div style={{ fontSize: 11, color: C.muted }}>Near {data.weather?.area || "Singapore"}</div>
+              <div style={{ fontSize: 10, color: C.faint, marginTop: 4 }}>2-hour nowcast</div>
+            </Card>
+
             {/* PSI Card */}
             <Card style={{ borderColor: PSI_COLOR(data.psi.status) + "40", textAlign:"center", padding:"24px 20px" }}>
               <div style={{ fontSize:11, fontWeight:600, color:C.muted, marginBottom:12, letterSpacing:"0.05em" }}>
@@ -1578,47 +1594,31 @@ function SingaporePanel() {
             </Card>
 
             {/* Bus Card */}
-            <Card style={{ borderColor: data.bus.available ? C.green+"30" : C.border }}>
-              <div style={{ fontSize:11, fontWeight:600, color:C.muted, marginBottom:12, letterSpacing:"0.05em" }}>
-                🚌 BUS ARRIVALS — STOP {data.bus.stop}
+            <Card style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: C.indigo, marginBottom: 10, letterSpacing: "0.05em" }}>
+                🚌 BUS ARRIVALS — STOP {data.bus_stop || "83139"}
               </div>
-              {!data.bus.available ? (
-                <div>
-                  <div style={{ fontSize:13, color:C.muted, lineHeight:1.7, marginBottom:10 }}>
-                    {data.bus.message}
-                  </div>
-                  <a href="https://datamall.lta.gov.sg/content/datamall/en/request-for-api.html"
-                    target="_blank" rel="noopener noreferrer"
-                    style={{ fontSize:12, color:C.indigo }}>
-                    Register free at datamall.lta.gov.sg →
-                  </a>
-                </div>
-              ) : data.bus.buses.length === 0 ? (
-                <div style={{ fontSize:13, color:C.muted }}>No buses found for this stop</div>
-              ) : (
-                <div>
-                  {data.bus.buses.map((b, i) => (
-                    <div key={i} style={{ display:"flex", justifyContent:"space-between",
-                      alignItems:"center", padding:"8px 0",
-                      borderBottom: i < data.bus.buses.length-1 ? `1px solid ${C.border}` : "none" }}>
-                      <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                        <span style={{ background:C.indigo+"20", color:C.indigo, borderRadius:6,
-                          padding:"2px 10px", fontSize:14, fontWeight:800 }}>{b.service}</span>
-                        <span style={{ fontSize:11, color:C.muted }}>
-                          {b.load==="SEA" ? "Seats available" : b.load==="SDA" ? "Standing available" : b.load==="LSD" ? "Limited standing" : ""}
-                        </span>
-                      </div>
-                      <span style={{ fontSize:15, fontWeight:800,
-                        color: b.eta==="Arr"||parseInt(b.eta)<=2 ? C.green : C.text }}>
-                        {b.eta}
+              {data.bus_arrivals && data.bus_arrivals.length > 0 ? (
+                data.bus_arrivals.map((b, i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: i < data.bus_arrivals.length - 1 ? `1px solid ${C.border}` : "none" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <span style={{ background: C.indigo, color: "#fff", borderRadius: 6, padding: "2px 10px", fontWeight: 700, fontSize: 13 }}>
+                        {b.service}
                       </span>
+                      <span style={{ fontSize: 12, color: C.muted }}>{b.load || "Seats available"}</span>
                     </div>
-                  ))}
+                    <span style={{ fontWeight: 700, fontSize: 14, color: b.eta_min === 0 ? C.green : C.text }}>
+                      {b.eta_min === 0 ? "Arriving" : `${b.eta_min} min`}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div style={{ fontSize: 13, color: C.muted }}>
+                  {data.bus_arrivals ? "No buses found for this stop." : "Set LTA_API_KEY in .env to enable bus arrivals."}
                 </div>
               )}
             </Card>
-          </div>
-
+        </div>
           <div style={{ fontSize:11, color:C.faint, textAlign:"center" }}>
             Sources: data.gov.sg (PSI — National Environment Agency) ·
             datamall.lta.gov.sg (Bus — Land Transport Authority)
