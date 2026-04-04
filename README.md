@@ -207,7 +207,7 @@ The chat agent reads your live task list, events, and spending at every request.
 "Mark 'Push final code to GitHub' as done"  → updates task status
 ```
 
-The backend calls Groq, parses the tool-call response, executes the store write, and returns a confirmation: all transparently.
+The backend calls Groq, parses the tool-call response, executes the store write, and returns a confirmation.
 
 ### HackerNews Agent: Task-Correlation
 Fetches the top 20 HN stories, concurrently retrieves metadata using `asyncio.gather()`, and runs AI summarisation via Groq. A deterministic keyword-matching algorithm (no LLM judgment) flags stories as relevant to your active tasks.
