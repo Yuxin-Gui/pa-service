@@ -1,4 +1,4 @@
-# PA-as-a-Service 🤖
+# PA-as-a-Service 
 
 > **NTU Cloud Computing Assignment — Topic 2: Personal Assistant-as-a-Service**
 > A microservices platform that unifies 11 personal assistant capabilities into one interface, powered by Meta Llama 3 via Groq AI.
