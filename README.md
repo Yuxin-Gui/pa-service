@@ -14,7 +14,7 @@
 
 PA-as-a-Service decomposes a personal assistant into 11 independent REST microservices. The platform integrates 8 external APIs and connects them through a cross-service AI reasoning layer: the PA Chat Agent knows your tasks, calendar, and spending in real time, and can act across all services through tool-calling.
 
-**The problem it solves:** Knowledge workers switch between 8–10 apps per study session, costing an average of 23 minutes 15 seconds of refocus time per switch (Mark et al., 2008). PA-as-a-Service reduces that to one application.
+**The problem it solves:** Knowledge workers switch between 8-10 apps per study session, costing an average of 23 minutes 15 seconds of refocus time per switch (Mark et al., 2008). PA-as-a-Service reduces that to one application.
 
 ---
 
@@ -320,13 +320,13 @@ Groq's free tier requires no credit card and provides generous rate limits for d
 
 - Cirillo, F. (2006). *The Pomodoro Technique.* FC Garage.
 - Fielding, R. T. (2000). *Architectural styles and the design of network-based software architectures* [Doctoral dissertation, UC Irvine].
-- Gollwitzer, P. M. (1999). Implementation intentions. *American Psychologist, 54*(9), 736–740.
-- Mark, G., Gudith, D., & Klocke, U. (2008). The cost of interrupted work. *CHI '08*, 107–110.
+- Gollwitzer, P. M. (1999). Implementation intentions. *American Psychologist, 54*(9), 736-740.
+- Mark, G., Gudith, D., & Klocke, U. (2008). The cost of interrupted work. *CHI '08*, 107-110.
 - Mark, G. (2022, August). How much time do we waste toggling between applications? *Harvard Business Review.*
-- Miller, G. A. (1956). The magical number seven. *Psychological Review, 63*(2), 81–97.
+- Miller, G. A. (1956). The magical number seven. *Psychological Review, 63*(2), 81-97.
 - Newman, S. (2015). *Building microservices.* O'Reilly Media.
-- Nielsen, J. (1994). Heuristic evaluation. In *Usability inspection methods* (pp. 25–62). Wiley.
-- Sirois, F. M. (2014). Procrastination and stress. *Self and Identity, 13*(2), 128–145.
+- Nielsen, J. (1994). Heuristic evaluation. In *Usability inspection methods* (pp. 25-62). Wiley.
+- Sirois, F. M. (2014). Procrastination and stress. *Self and Identity, 13*(2), 128-145.
 - Thaler, R. H., & Sunstein, C. R. (2008). *Nudge.* Yale University Press.
 
 
