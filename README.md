@@ -1,6 +1,6 @@
 # PA-as-a-Service 
 
-> **NTU Cloud Computing Assignment — Topic 2: Personal Assistant-as-a-Service**
+> **NTU Cloud Computing Assignment: Topic 2: Personal Assistant-as-a-Service**
 > A microservices platform that unifies 11 personal assistant capabilities into one interface, powered by Meta Llama 3 via Groq AI.
 
 [![Python](https://img.shields.io/badge/Python-3.12-blue)](https://python.org)
@@ -12,7 +12,7 @@
 
 ## What It Does
 
-PA-as-a-Service decomposes a personal assistant into 11 independent REST microservices. The platform integrates 8 external APIs and connects them through a cross-service AI reasoning layer — the PA Chat Agent knows your tasks, calendar, and spending in real time, and can act across all services through tool-calling.
+PA-as-a-Service decomposes a personal assistant into 11 independent REST microservices. The platform integrates 8 external APIs and connects them through a cross-service AI reasoning layer: the PA Chat Agent knows your tasks, calendar, and spending in real time, and can act across all services through tool-calling.
 
 **The problem it solves:** Knowledge workers switch between 8–10 apps per study session, costing an average of 23 minutes 15 seconds of refocus time per switch (Mark et al., 2008). PA-as-a-Service reduces that to one application.
 
@@ -21,10 +21,10 @@ PA-as-a-Service decomposes a personal assistant into 11 independent REST microse
 ## Architecture
 
 ```
-Frontend (React 18 — port 3000)
+Frontend (React 18: port 3000)
         │  HTTP / JSON (CORS)
         ▼
-Backend  (FastAPI — port 8000)
+Backend  (FastAPI: port 8000)
         │
         ├── /api/tasks          → In-memory task store
         ├── /api/scheduler      → In-memory event store
@@ -67,9 +67,9 @@ pa-service/
 ├── README.md
 │
 ├── backend/
-│   ├── main.py                        # FastAPI gateway — mounts all 11 routers
+│   ├── main.py                        # FastAPI gateway: mounts all 11 routers
 │   ├── requirements.txt
-│   ├── .env                           # API keys (NOT committed — see below)
+│   ├── .env                           # API keys (NOT committed: see below)
 │   ├── shared/
 │   │   └── models.py                  # Shared Pydantic models
 │   └── services/
@@ -112,12 +112,12 @@ pa-service/
 
 - **Python 3.12+**
 - **Node.js 18+** and npm
-- **Groq API key** (free — no credit card required): https://console.groq.com
+- **Groq API key** (free: no credit card required): https://console.groq.com
 
 Optional:
-- **LTA DataMall API key** (free — bus arrivals): https://datamall.lta.gov.sg
-- **Mastodon access token** (free — from your instance settings)
-- **GitHub personal access token** (optional — increases rate limit from 60 to 5,000 req/hr)
+- **LTA DataMall API key** (free: bus arrivals): https://datamall.lta.gov.sg
+- **Mastodon access token** (free: from your instance settings)
+- **GitHub personal access token** (optional: increases rate limit from 60 to 5,000 req/hr)
 
 ---
 
@@ -137,10 +137,10 @@ Create `backend/.env`:
 ```env
 GROQ_API_KEY=your_groq_key_here
 
-# Optional — enables live bus arrivals in SG Context tab
+# Optional: enables live bus arrivals in SG Context tab
 LTA_API_KEY=your_lta_key_here
 
-# Optional — enables live Mastodon feed analysis
+# Optional: enables live Mastodon feed analysis
 MASTODON_ACCESS_TOKEN=your_mastodon_token_here
 MASTODON_INSTANCE=https://mastodon.social
 ```
@@ -173,17 +173,17 @@ From the project root:
 start.bat
 ```
 
-This opens two terminal windows — one for the backend, one for the frontend.
+This opens two terminal windows: one for the backend, one for the frontend.
 
 ### Manual (any OS)
 
-**Terminal 1 — Backend:**
+**Terminal 1: Backend:**
 ```bash
 cd backend
 python -m uvicorn main:app --reload --port 8000
 ```
 
-**Terminal 2 — Frontend:**
+**Terminal 2: Frontend:**
 ```bash
 cd frontend
 npm start
@@ -207,20 +207,20 @@ The chat agent reads your live task list, events, and spending at every request.
 "Mark 'Push final code to GitHub' as done"  → updates task status
 ```
 
-The backend calls Groq, parses the tool-call response, executes the store write, and returns a confirmation — all transparently.
+The backend calls Groq, parses the tool-call response, executes the store write, and returns a confirmation: all transparently.
 
-### HackerNews Agent — Task-Correlation
-Fetches the top 20 HN stories, concurrently retrieves metadata using `asyncio.gather()`, and runs AI summarisation via Groq. A deterministic keyword-matching algorithm (no LLM judgment) flags stories as relevant to your active tasks — no false positives.
+### HackerNews Agent: Task-Correlation
+Fetches the top 20 HN stories, concurrently retrieves metadata using `asyncio.gather()`, and runs AI summarisation via Groq. A deterministic keyword-matching algorithm (no LLM judgment) flags stories as relevant to your active tasks.
 
-### Singapore Agent — Live Government Data
+### Singapore Agent: Live Government Data
 Hits three endpoints concurrently:
-- `data.gov.sg/v1/environment/2-hour-nowcast` — weather near central Singapore
-- `data.gov.sg/v1/environment/psi` — national PSI air quality index
-- `datamall2.mytransport.sg/ltaodataservice/v3/BusArrival` — bus ETAs (requires free LTA key)
+- `data.gov.sg/v1/environment/2-hour-nowcast`: weather near central Singapore
+- `data.gov.sg/v1/environment/psi`: national PSI air quality index
+- `datamall2.mytransport.sg/ltaodataservice/v3/BusArrival`: bus ETAs (requires free LTA key)
 
 Groq generates a 2-sentence practical daily briefing combining all three data sources with your most urgent task.
 
-### Research Assistant — Smart arXiv Search
+### Research Assistant: Smart arXiv Search
 A `_smart_query()` function maps student task terms to meaningful academic queries before hitting `export.arxiv.org`. For example:
 - `"microservices"` → `"microservices architecture"`
 - `"procrastination"` → `"procrastination academic performance"`
@@ -228,8 +228,8 @@ A `_smart_query()` function maps student task terms to meaningful academic queri
 
 This prevents arXiv from receiving task-management language that would return irrelevant results.
 
-### Focus Mode — Behavioral Science Engine
-Computes a procrastination risk score from four weighted factors (overdue tasks, stuck in-progress tasks, high-priority backlog, priority avoidance pattern). At **HIGH** risk (score ≥ 60), a Focus Lock overlay covers the entire application and requires explicit acknowledgement before proceeding — implementing the friction mechanism from Thaler & Sunstein (2008).
+### Focus Mode: Behavioral Science Engine
+Computes a procrastination risk score from four weighted factors (overdue tasks, stuck in-progress tasks, high-priority backlog, priority avoidance pattern). At **HIGH** risk (score ≥ 60), a Focus Lock overlay covers the entire application and requires explicit acknowledgement before proceeding. This implements the friction mechanism from Thaler & Sunstein (2008).
 
 AI-generated implementation intentions follow Gollwitzer's (1999) if-then format:
 > *"If it is after 3 PM, then I will sit down at my desk and work on 'Write literature review' for 25 minutes."*
@@ -310,9 +310,9 @@ Groq's free tier requires no credit card and provides generous rate limits for d
 
 ## Known Limitations
 
-- **In-memory storage only** — all data resets on backend restart. A production deployment would use SQLite or PostgreSQL.
-- **Single-user** — no authentication layer. All services share one in-memory store.
-- **LTA bus arrivals require a free key** — the Singapore Agent displays a registration link if `LTA_API_KEY` is absent.
+- **In-memory storage only**: all data resets on backend restart. A production deployment would use SQLite or PostgreSQL.
+- **Single-user**: no authentication layer. All services share one in-memory store.
+- **LTA bus arrivals require a free key**: the Singapore Agent displays a registration link if `LTA_API_KEY` is absent.
 
 ---
 
@@ -330,5 +330,5 @@ Groq's free tier requires no credit card and provides generous rate limits for d
 - Thaler, R. H., & Sunstein, C. R. (2008). *Nudge.* Yale University Press.
 
 
-- **Assignment:** Topic 2 — Personal Assistant-as-a-Service
+- **Assignment:** Final Project Topic 2 (Personal Assistant-as-a-Service)
 - **GitHub:** https://github.com/Yuxin-Gui/pa-service
