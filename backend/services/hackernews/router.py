@@ -19,10 +19,10 @@ HN_API     = "https://hacker-news.firebaseio.com/v0"
 def _time_ago(unix_ts: int) -> str:
     if not unix_ts:
         return "unknown"
-    now   = datetime.now(timezone.utc).timestamp()
-    diff  = int(now - unix_ts)
-    if diff < 3600:   return f"{diff // 60}m ago"
-    if diff < 86400:  return f"{diff // 3600}h ago"
+    now  = datetime.now(timezone.utc).timestamp()
+    diff = int(now - unix_ts)
+    if diff < 3600:  return f"{diff // 60}m ago"
+    if diff < 86400: return f"{diff // 3600}h ago"
     return f"{diff // 86400}d ago"
 
 
@@ -38,35 +38,36 @@ async def _fetch_story(client: httpx.AsyncClient, story_id: int) -> dict | None:
     return None
 
 
-def _extract_keywords(task_title: str) -> list[str]:
-    """Extract meaningful keywords from a task title."""
-    stop_words = {"a","an","the","and","or","but","in","on","at","to","for",
-                  "of","with","by","from","is","was","are","were","be","been",
-                  "have","has","had","do","does","did","will","would","could",
-                  "should","may","might","shall","can","need","dare","ought",
-                  "complete","write","prepare","review","finalise","submit",
-                  "create","make","build","add","update","fix","check","read"}
+def _extract_keywords(task_title: str) -> set:
+    stop_words = {
+        "a","an","the","and","or","but","in","on","at","to","for","of","with",
+        "by","from","is","was","are","were","be","been","have","has","had","do",
+        "does","did","will","would","could","should","may","might","shall","can",
+        "need","complete","write","prepare","review","finalise","submit","create",
+        "make","build","add","update","fix","check","read","file","zip","ntu",
+        "learn","record","video","push","code","final","slides","demo",
+        "walkthrough","presentation","into","its","all","our","this","that",
+    }
     words = task_title.lower().replace("-", " ").split()
-    return [w for w in words if w not in stop_words and len(w) > 3]
+    return {w for w in words if len(w) >= 3 and w not in stop_words}
+
+
+def _find_relevant_task(story_title: str, task_keywords: dict) -> str | None:
+    story_words = set(story_title.lower().replace("-", " ").split())
+    for task_title, keywords in task_keywords.items():
+        if keywords & story_words:
+            return task_title
+    return None
 
 
 async def _ai_summarise(stories: list[dict], tasks: list[dict]) -> list[dict]:
     api_key = os.environ.get("GROQ_API_KEY", "")
 
-    # Build keyword map for strict correlation — no AI hallucination
     task_keywords = {}
     for t in tasks[:5]:
         kws = _extract_keywords(t["title"])
         if kws:
             task_keywords[t["title"]] = kws
-
-    # Pre-compute correlations based on keyword matching only
-    def find_relevant_task(story_title: str) -> str | None:
-        title_lower = story_title.lower()
-        for task_title, keywords in task_keywords.items():
-            if sum(1 for kw in keywords if kw in title_lower) >= 2:
-                return task_title
-        return None
 
     if not api_key:
         return [{
@@ -77,7 +78,7 @@ async def _ai_summarise(stories: list[dict], tasks: list[dict]) -> list[dict]:
             "comments":      s.get("descendants", 0),
             "time_ago":      _time_ago(s.get("time", 0)),
             "summary":       "AI summary unavailable — set GROQ_API_KEY.",
-            "relevant_task": find_relevant_task(s["title"]),
+            "relevant_task": _find_relevant_task(s["title"], task_keywords),
         } for s in stories]
 
     stories_text = "\n".join([f"{i+1}. {s['title']}" for i, s in enumerate(stories)])
@@ -124,7 +125,7 @@ Respond EXACTLY like this, nothing else:
         "comments":      s.get("descendants", 0),
         "time_ago":      _time_ago(s.get("time", 0)),
         "summary":       summaries.get(i, "Trending tech story on Hacker News."),
-        "relevant_task": find_relevant_task(s["title"]),
+        "relevant_task": _find_relevant_task(s["title"], task_keywords),
     } for i, s in enumerate(stories)]
 
 
