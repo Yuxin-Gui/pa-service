@@ -55,7 +55,7 @@ Backend  (FastAPI: port 8000)
 | 8 | PA Chat Agent | PA Chat | Groq `llama-3.3-70b-versatile` | `GROQ_API_KEY` |
 | 9 | Focus Mode | Focus Mode | Groq `llama-3.1-8b-instant` | `GROQ_API_KEY` |
 | 10 | Finance Tracker | Finance | Groq `llama-3.1-8b-instant` | `GROQ_API_KEY` |
-| 11 | Reports | Reports | Open-Meteo API | None |
+| 11 | Reports | Reports | None | None |
 
 ---
 
@@ -298,7 +298,7 @@ The sidebar groups 11 tabs into three sections: **Core**, **AI Agents**, **Perso
 | HTTP client (backend) | httpx (async) |
 | Data validation | Pydantic v2 |
 | Storage | In-memory Python dicts (task_store, schedule_store, finance_store) |
-| External APIs | GitHub REST v3, Mastodon REST, HN Firebase, data.gov.sg, LTA DataMall v3, arXiv, Open-Meteo |
+| External APIs | GitHub REST v3, Mastodon REST, HN Firebase, data.gov.sg, LTA DataMall v3, arXiv, Groq |
 
 ---
 
